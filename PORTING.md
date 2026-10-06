@@ -394,6 +394,8 @@ export const Fold = forwardRef<FoldHandle, FoldProps>(…);
 ## 14. Decided in the lab, and what is left
 
 Fixed in the lab before the review (final fixes):
+- `happy`'s raised mittens no longer read as ears at 32 pt: they fling up at different heights
+  (left y −100, right y −74 and further out) instead of as a matching pair beside the head.
 - `thinking` reads at 32 pt: the dots have a small set and stay visible below 44 pt (section 3).
 - `lookAtDown` reads: the eyes drop 11 units (9 in the small set), the face 5, and both mittens tip
   in toward the button (`POSES.lookDown`, `lookAt.js`).
@@ -419,9 +421,6 @@ handR.rotate 18 → 14; `lookAtDown` mittens 6.4 → 6 degrees; `surprised` mitt
 the button and settling, welcomeBack's sigh) are moves of their own, not overshoot.
 
 Still open:
-- At 32 pt, `happy`'s mittens are up beside the head for about 200 ms (300–500 ms) and can read as
-  ears in that moment; the end pose is fine. A character-level fix (smaller mittens in small mode)
-  would be reviewed in the lab first.
 - `proud` and `surprised` both answer a new best (section 10): one rule, recorded as a decision.
 - The founder runs the D142 5-second test in the lab (`index.html`, "5-second test"; "Today vs new"
   shows today's Fold beside the new one) before anything moves into the app.

@@ -4,8 +4,8 @@
  * Anticipation: the body squashes from its planted base while the eyes blink into happy arcs and
  * the mittens press down and turn in a little (cocking for the jump). Takeoff: the body stretches
  * as the whole coach (root) leaves the ground, the small smile fades and grows in under cover of
- * the stretch, and both mittens fling up beside the head, high enough to clear the hood's upper
- * corners (so at 32 px they read as raised hands, not ears), turned out ("yay"), a beat behind the
+ * the stretch, and both mittens fling up at different heights, the left one above the hood's
+ * upper corner and the right one lower and further out, turned out ("yay"), a beat behind the
  * body. Apex: the features float up a touch, the shadow shrinks and fades. Landing: the body
  * squashes, the features drop past, the happy eyes squeeze for a moment, and the mittens drop to
  * the cheeks (follow-through) and settle into the happy pose while the body springs back to a
@@ -64,20 +64,21 @@ BraviloMotion.ANIMS['happy'] = {
     { part: 'mouth', prop: 'scale', keys: [[0, 1], [240, 0.35, 'standard'], [420, 1, 'spring']] },
     { part: 'mouth', prop: 'opacity', keys: [[0, 1], [220, 0, 'standard'], [240, 0], [340, 1, 'out']] },
 
-    // Mittens: press down and turn in (cocking), fling up beside the head, clear of the hood's
-    // upper corners and turned out ("yay"), a beat after the body leaves; drop past the cheeks
+    // Mittens: press down and turn in (cocking), fling up turned out ("yay") a beat after the body
+    // leaves, at different heights (left y -100, right y -74 and further out), so at 32 px the pair
+    // reads as a gesture, not as two matching blobs on the hood's sides (ears); then drop past the cheeks
     // after touch down with the wrists dragging (the turn lags, 4 degrees past the cheek angle,
     // the keyed follow-through limit of SPEC §3), then settle at the cheeks.
     // The right mitten trails the left by 30 ms so the pair doesn't move as one block.
-    { part: 'handL', prop: 'x', keys: [[0, 0], [200, 1.5, 'standard'], [430, -18, 'out'], [840, -6, 'standard']] },
-    { part: 'handL', prop: 'y', keys: [[0, 0], [200, 4, 'standard'], [430, -78, 'out'],
+    { part: 'handL', prop: 'x', keys: [[0, 0], [200, 1.5, 'standard'], [430, -14, 'out'], [840, -6, 'standard']] },
+    { part: 'handL', prop: 'y', keys: [[0, 0], [200, 4, 'standard'], [430, -100, 'out'],
                                        [610, -15, 'standard'], [840, -20, 'out']] },
-    { part: 'handL', prop: 'rotate', keys: [[0, 0], [200, 6, 'standard'], [430, -22, 'out'],
+    { part: 'handL', prop: 'rotate', keys: [[0, 0], [200, 6, 'standard'], [430, -26, 'out'],
                                             [610, -16, 'standard'], [840, -20, 'out']] },
     { part: 'handR', prop: 'x', keys: [[0, 0], [230, -1.5, 'standard'], [460, 18, 'out'], [870, 6, 'standard']] },
-    { part: 'handR', prop: 'y', keys: [[0, 0], [230, 4, 'standard'], [460, -78, 'out'],
+    { part: 'handR', prop: 'y', keys: [[0, 0], [230, 4, 'standard'], [460, -74, 'out'],
                                        [640, -15, 'standard'], [870, -20, 'out']] },
-    { part: 'handR', prop: 'rotate', keys: [[0, 0], [230, -6, 'standard'], [460, 22, 'out'],
+    { part: 'handR', prop: 'rotate', keys: [[0, 0], [230, -6, 'standard'], [460, 30, 'out'],
                                             [640, 16, 'standard'], [870, 20, 'out']] }
   ],
   swaps: [
