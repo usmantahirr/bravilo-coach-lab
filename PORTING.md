@@ -446,3 +446,12 @@ Today amends D75 and D154 for its one coach only:
 - **Replay on view:** Today (§15, with the idle beat) and the empty chat (greeting, no idle beat) replay each time they come into view. Key the moment by visit.
 - **Reduce Motion:** no second play and no replays.
 - **The lab:** a new "Play: Once / Twice" control. Twice is the default and shows the one-time screen behaviour; it never applies to press, pressOpen, chatOpen or the idle beats.
+
+## 17. Tap to animate (D167)
+
+- A tap on Pocket plays the screen's moment again, with the same rules as a replay (settle from the current pose, then play), or `nod` where Pocket only holds a still pose.
+- A tap is ignored while Pocket is moving and during thinking.
+- The tab-bar button keeps its own press and chat open (§11).
+- No haptic. Pocket stays `accessible={false}` (decorative), so the tap is never the only way to do anything.
+- Reduce Motion: a tap does nothing.
+- In the lab, tap any card's Pocket.
