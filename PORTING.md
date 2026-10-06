@@ -424,3 +424,12 @@ Still open:
 - `proud` and `surprised` both answer a new best (section 10): one rule, recorded as a decision.
 - The founder runs the D142 5-second test in the lab (`index.html`, "5-second test"; "Today vs new"
   shows today's Fold beside the new one) before anything moves into the app.
+
+## 15. Today's replay and idle beat (D163)
+
+Today amends D75 and D154 for its one coach only:
+- The coach line's moment replays each time Today comes into view: the tab gains focus, the person comes back to it, or the app returns to the foreground. It starts about 600 ms after the screen settles. Key it by visit, not by date, so the once-per-key rule allows it.
+- Between replays, play `idle_<pose>` about every 10 s, where `<pose>` is the pose the coach is holding. `anims/idle.js` registers one per still pose except thinking: a 240 ms blink for open eyes, and a 300 ms breath for happy or closed eyes. Each starts and ends on its pose, so it plays with no settle.
+- Stop the idle timer when Today is not visible (blur, background, scrolled off screen).
+- Reduce Motion: no replay and no idle beat.
+- Every other screen keeps once per event and no idle motion.

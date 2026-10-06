@@ -575,13 +575,17 @@
       choices: [['press', 'Chat closed'], ['pressOpen', 'Chat open']] },
     { key: 'chatOpen', name: 'Chat open',
       plays: 'the chat is open (the coach button’s open state)',
-      feel: 'One hand raised and held, a friendly smile.' }
+      feel: 'One hand raised and held, a friendly smile.' },
+    { key: 'idle', name: 'Idle beat (Today)',
+      plays: 'Today, between replays of its moment: about every 10 s while Today is on screen (D163)',
+      feel: 'A soft blink. When the eyes are happy or closed, one small breath instead.',
+      choices: [['idle_rest', 'Rest'], ['idle_encourage', 'Encourage'], ['idle_sleepy', 'Sleepy'], ['idle_happy', 'Happy'], ['idle_concerned', 'Concerned']] }
   ];
 
   // Play all: every animation in turn (thinking runs two loops, then stops).
   var PLAY_ALL = [['greeting'], ['nod'], ['thinking'], ['happy'], ['proud'], ['encourage'], ['sleepy'],
     ['welcomeBack'], ['concerned'], ['surprised'], ['lookAt', 'lookAtLeft'], ['lookAt', 'lookAtRight'],
-    ['lookAt', 'lookAtDown'], ['press', 'press'], ['chatOpen']];
+    ['lookAt', 'lookAtDown'], ['press', 'press'], ['chatOpen'], ['idle', 'idle_rest']];
 
   // Every end pose, for the size check.
   var POSE_LIST = [['rest', 'rest'], ['happy', 'happy'], ['proud', 'proud'], ['encourage', 'encourage'],
