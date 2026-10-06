@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Retired: judge-animation test</title>
+<style>
+  body { margin: 0; font: 11px/1.3 -apple-system, Helvetica, Arial, sans-serif; background: #F6F5EF; color: #1E2220; }
+  body.dark { background: #151918; color: #C9D3BF; }
+  h2 { font-size: 12px; margin: 8px 12px 2px; }
+  .row { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 12px; align-items: flex-end; }
+  .cell { display: flex; flex-direction: column; align-items: center; }
+  .cell .box { outline: 1px dashed rgba(200,60,60,.6); }
+  .lbl { font-size: 10px; opacity: .75; }
+  pre { margin: 8px 12px; font: 10px/1.25 Menlo, monospace; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<div role="note" style="position:sticky;top:0;z-index:100;margin:0;padding:12px 16px;background:#7A3E0C;color:#FFF4E5;font:600 15px/1.4 -apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif">Retired candidates, not the final coach. This page draws the candidates the judges compared (candidates/cand-*), kept only as a record. The coach for review is in index.html.</div>
+<div id="out"></div>
+<pre id="report"></pre>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  var cand = q.get('c') || 'cand-1';
+  var mode = q.get('mode') || 'frames';
+  var theme = q.get('theme') || 'light';
+  var size = +(q.get('size') || 112);
+  if (theme === 'dark') document.body.className = 'dark';
+  var s = document.createElement('script');
+  s.src = 'candidates/' + cand + '/coach.js';
+  s.onload = run;
+  document.head.appendChild(s);
+
+  var REP = [];
+  function log(x) { REP.push(x); }
+
+  function tf(BC, part, t) {
+    var p = BC.PIVOTS[part];
+    var x = t.x || 0, y = t.y || 0, r = t.rotate || 0;
+    var sx = t.scaleX != null ? t.scaleX : (t.scale != null ? t.scale : 1);
+    var sy = t.scaleY != null ? t.scaleY : (t.scale != null ? t.scale : 1);
+    return 'translate(' + (x + p[0]) + ' ' + (y + p[1]) + ') rotate(' + r + ') scale(' + sx + ' ' + sy + ') translate(' + (-p[0]) + ' ' + (-p[1]) + ')';
+  }
+  function apply(BC, coach, pose) {
+    ['root','body','face','eyes','mouth','brows','handL','handR','fx','shadow'].forEach(function (k) { coach.parts[k].removeAttribute('transform'); });
+    var dv = { eyes: 'rest', mouth: 'none', brows: 'none', fx: 'none' };
+    ['eyes','mouth','brows','fx'].forEach(function (g) { coach.setVariant(g, pose[g] || dv[g]); });
+    var parts = pose.parts || {};
+    Object.keys(parts).forEach(function (k) { coach.parts[k].setAttribute('transform', tf(BC, k, parts[k])); });
+  }
+  // bbox in viewBox units of an element, through all transforms, using screen CTMs
+  function vbBox(svg, el) {
+    var r = el.getBoundingClientRect(), sr = svg.getBoundingClientRect();
+    if (r.width === 0 && r.height === 0) return null;
+    var k = 240 / sr.width;
+    return [ (r.left - sr.left) * k, (r.top - sr.top) * k, (r.right - sr.left) * k, (r.bottom - sr.top) * k ];
+  }
+  function f(b) { return b ? b.map(function (v) { return v.toFixed(1); }).join(',') : 'empty'; }
+  function inside(b, m) { m = m || 0; return !b || (b[0] >= -m && b[1] >= -m && b[2] <= 240 + m && b[3] <= 240 + m); }
+
+  // the frames used for motion tests (same for both candidates; offsets in drawing units)
+  function waveFrames(BC) {
+    // hand raised beside the head, then rotated about its pivot (a wave)
+    var lift = { x: 10, y: -78 };
+    return [0, 22, -14, 22, -14, 0].map(function (r, i) {
+      return { label: 'wave ' + r + 'deg', eyes: 'happy', parts: { handR: { x: lift.x, y: lift.y, rotate: r } } };
+    });
+  }
+  var SQUASH = [
+    { label: 'rest' },
+    { label: 'dip sx1.08 sy.90', parts: { body: { scaleX: 1.08, scaleY: 0.90 }, handL: { y: 4 }, handR: { y: 4 } } },
+    { label: 'stretch sx.94 sy1.10', parts: { body: { scaleX: 0.94, scaleY: 1.10 }, root: { y: -10 } } },
+    { label: 'hop up y-24', eyes: 'happy', mouth: 'smile', parts: { root: { y: -24 }, shadow: { scale: 0.8, opacity: 0.6 } } },
+    { label: 'land squash', eyes: 'happy', parts: { body: { scaleX: 1.06, scaleY: 0.93 } } },
+    { label: 'press .94', parts: { root: { scale: 0.94 } } },
+    { label: 'lean 6deg', parts: { body: { rotate: 6 } } },
+    { label: 'face x+6 (turn)', eyes: 'right', parts: { face: { x: 6 } } },
+    { label: 'face pop 1.06', eyes: 'wide', mouth: 'o', parts: { face: { scale: 1.06 } } },
+    { label: 'blink sy.15', parts: { eyes: { scaleY: 0.15 } } },
+    { label: 'proud punch', eyes: 'happy', mouth: 'open', fx: 'spark', parts: { body: { scaleY: 1.04 }, handR: { x: 14, y: -128, rotate: 8 }, handL: { y: -6 } } },
+    { label: 'chin (thinking)', eyes: 'up', brows: 'think', fx: 'dots', parts: { handR: { x: -48, y: -8, rotate: -20 } } },
+    { label: 'fx dots scale 1.15', fx: 'dots', parts: { fx: { scale: 1.15 } } },
+    { label: 'mouth scale 1.2', mouth: 'open', parts: { mouth: { scale: 1.2 } } }
+  ];
+
+  function cell(row, BC, label, pose, sz) {
+    var c = document.createElement('div'); c.className = 'cell';
+    var h = document.createElement('div'); h.className = 'box'; c.appendChild(h);
+    var coach = BC.create(h, { theme: theme, size: sz || size });
+    apply(BC, coach, pose);
+    // pivot markers (debug), outside the part groups
+    if (q.get('pivots')) {
+      Object.keys(BC.PIVOTS).forEach(function (k) {
+        var p = BC.PIVOTS[k];
+        var m = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        m.setAttribute('cx', p[0]); m.setAttribute('cy', p[1]); m.setAttribute('r', 2.5);
+        m.setAttribute('fill', '#E5484D'); coach.svg.appendChild(m);
+      });
+    }
+    var l = document.createElement('div'); l.className = 'lbl'; l.textContent = label; c.appendChild(l);
+    row.appendChild(c);
+    return coach;
+  }
+
+  function run() {
+    var BC = window.BraviloCoach, out = document.getElementById('out');
+    if (mode === 'frames') {
+      var h = document.createElement('h2'); h.textContent = cand + ' · hand wave about PIVOTS.handR (' + BC.PIVOTS.handR.join(',') + ')'; out.appendChild(h);
+      var r1 = document.createElement('div'); r1.className = 'row'; out.appendChild(r1);
+      waveFrames(BC).forEach(function (p) { cell(r1, BC, p.label, p); });
+      var h2 = document.createElement('h2'); h2.textContent = cand + ' · body squash / stretch / hop / face / proud / thinking'; out.appendChild(h2);
+      var r2 = document.createElement('div'); r2.className = 'row'; out.appendChild(r2);
+      SQUASH.forEach(function (p) {
+        var coach = cell(r2, BC, p.label, p);
+        if (p.parts && p.parts.shadow && p.parts.shadow.opacity != null) coach.parts.shadow.style.opacity = p.parts.shadow.opacity;
+      });
+      return;
+    }
+    // ---------- report mode ----------
+    var holder = document.createElement('div'); out.appendChild(holder);
+    var coach = BC.create(holder, { theme: 'light', size: 240 });
+    var svg = coach.svg;
+    var names = ['root','body','face','eyes','mouth','brows','handL','handR','fx','shadow'];
+    log('== ' + cand + ' ==');
+    log('PIVOTS: ' + JSON.stringify(BC.PIVOTS));
+    log('VARIANTS: ' + JSON.stringify(BC.VARIANTS));
+    log('coach keys: ' + Object.keys(coach).join(','));
+    // structure
+    names.forEach(function (n) {
+      var g = coach.parts[n];
+      log('part ' + n + ': ' + (g ? g.tagName + ' data-part=' + g.getAttribute('data-part') + ' transform=' + (g.getAttribute('transform') || '-') : 'MISSING'));
+    });
+    var P = coach.parts;
+    log('root wraps all but shadow: ' + (svg.querySelectorAll(':scope > g').length) + ' top-level groups; shadow in root? ' + P.root.contains(P.shadow));
+    log('body has face/eyes/mouth/brows: ' + [P.face, P.eyes, P.mouth, P.brows].every(function (e) { return P.body.contains(e); }));
+    log('hands outside body: ' + (!P.body.contains(P.handL) && !P.body.contains(P.handR)) + '; hands in root: ' + (P.root.contains(P.handL) && P.root.contains(P.handR)));
+    log('fx in body? ' + P.body.contains(P.fx));
+    // nesting of named parts
+    names.forEach(function (n) {
+      var par = P[n].parentNode, chain = [];
+      while (par && par !== svg) { if (par.getAttribute && par.getAttribute('data-part')) chain.push(par.getAttribute('data-part')); par = par.parentNode; }
+      log('  ' + n + ' inside: ' + (chain.join(' > ') || 'svg'));
+    });
+    // forbidden + inventory
+    var tags = {};
+    svg.querySelectorAll('*').forEach(function (e) { tags[e.tagName] = (tags[e.tagName] || 0) + 1; });
+    log('element inventory: ' + JSON.stringify(tags));
+    var bad = svg.querySelectorAll('text,filter,mask,linearGradient,radialGradient,clipPath,pattern,image,use,foreignObject,style');
+    log('forbidden elements: ' + bad.length);
+    var stat = [];
+    svg.querySelectorAll('[transform]').forEach(function (e) { if (!e.getAttribute('data-part')) stat.push(e.tagName + '[' + e.getAttribute('transform') + ']'); });
+    log('static transforms on non-part elements: ' + (stat.length ? stat.join(' ; ') : 'none'));
+    var cmds = {};
+    svg.querySelectorAll('path').forEach(function (p) { (p.getAttribute('d').match(/[A-Za-z]/g) || []).forEach(function (c) { cmds[c] = (cmds[c] || 0) + 1; }); });
+    log('path commands used: ' + JSON.stringify(cmds));
+    var styleAttrs = {}; svg.querySelectorAll('[style]').forEach(function (e) { e.getAttribute('style').split(';').forEach(function (d) { var k = d.split(':')[0].trim(); if (k) styleAttrs[k] = (styleAttrs[k] || 0) + 1; }); });
+    log('inline style properties: ' + JSON.stringify(styleAttrs));
+    var fillAttr = svg.querySelectorAll('[fill],[stroke]'); log('fill/stroke presentation attributes: ' + fillAttr.length);
+    var hex = svg.outerHTML.match(/#[0-9a-fA-F]{3,6}\b|rgba?\(/g); log('hard-coded colours in markup: ' + (hex ? hex.join(',') : 'none'));
+    // variant visibility
+    ['eyes','mouth','brows','fx'].forEach(function (g) {
+      var vis = [], all = [];
+      Array.prototype.forEach.call(P[g].children, function (v) { all.push(v.getAttribute('data-variant')); if (getComputedStyle(v).display !== 'none') vis.push(v.getAttribute('data-variant')); });
+      log('variants ' + g + ': [' + all.join(',') + '] visible=' + vis.join(','));
+    });
+    // bbox of each variant and part, in viewBox units, all must be inside 0..240
+    var issues = [];
+    ['eyes','mouth','brows','fx'].forEach(function (g) {
+      BC.VARIANTS[g].forEach(function (v) {
+        coach.setVariant(g, v);
+        var b = vbBox(svg, P[g]);
+        log('  bbox ' + g + ':' + v + ' = ' + f(b));
+        if (!inside(b)) issues.push(g + ':' + v);
+      });
+      coach.setVariant(g, { eyes: 'rest', mouth: 'none', brows: 'none', fx: 'none' }[g]);
+    });
+    names.forEach(function (n) { var b = vbBox(svg, P[n]); log('  bbox part ' + n + ' = ' + f(b)); if (!inside(b)) issues.push('part ' + n); });
+    log('outside viewBox at rest: ' + (issues.length ? issues.join(',') : 'none'));
+    // pivot sanity vs bboxes
+    function ctr(b) { return [((b[0] + b[2]) / 2).toFixed(1), ((b[1] + b[3]) / 2).toFixed(1)]; }
+    var hb = vbBox(svg, P.handR), hl = vbBox(svg, P.handL), bb = vbBox(svg, P.body), eb = vbBox(svg, P.eyes);
+    log('handR bbox ' + f(hb) + ' centre ' + ctr(hb) + ' pivot ' + BC.PIVOTS.handR + ' (pivot y relative to bbox: ' + ((BC.PIVOTS.handR[1] - hb[1]) / (hb[3] - hb[1])).toFixed(2) + ' of height)');
+    log('handL bbox ' + f(hl) + ' centre ' + ctr(hl) + ' pivot ' + BC.PIVOTS.handL + ' (pivot y rel ' + ((BC.PIVOTS.handL[1] - hl[1]) / (hl[3] - hl[1])).toFixed(2) + ')');
+    log('body bbox ' + f(bb) + ' bottom ' + bb[3].toFixed(1) + ' pivot ' + BC.PIVOTS.body);
+    log('eyes(rest) bbox centre ' + ctr(eb) + ' pivot ' + BC.PIVOTS.eyes);
+    coach.setVariant('mouth', 'open'); var mb = vbBox(svg, P.mouth); log('mouth(open) centre ' + ctr(mb) + ' pivot ' + BC.PIVOTS.mouth); coach.setVariant('mouth', 'none');
+    coach.setVariant('brows', 'raised'); var brb = vbBox(svg, P.brows); log('brows(raised) centre ' + ctr(brb) + ' pivot ' + BC.PIVOTS.brows); coach.setVariant('brows', 'none');
+    coach.setVariant('fx', 'dots'); var fb = vbBox(svg, P.fx); log('fx(dots) bbox ' + f(fb) + ' pivot ' + BC.PIVOTS.fx); coach.setVariant('fx', 'none');
+    var fcb = vbBox(svg, P.face); log('face part bbox ' + f(fcb) + ' centre ' + ctr(fcb) + ' pivot ' + BC.PIVOTS.face);
+    var sb = vbBox(svg, P.shadow); log('shadow bbox ' + f(sb) + ' centre ' + ctr(sb) + ' pivot ' + BC.PIVOTS.shadow);
+    // motion poses: bounds through transforms
+    var allPoses = SQUASH.concat(waveFrames(BC));
+    allPoses.forEach(function (p) {
+      apply(BC, coach, p);
+      var over = [];
+      names.forEach(function (n) { var b = vbBox(svg, P[n]); if (!inside(b)) over.push(n + ' ' + f(b)); });
+      if (over.length) log('  pose "' + p.label + '" leaves viewBox: ' + over.join(' | '));
+    });
+    apply(BC, coach, {});
+    // small mode
+    coach.setSize(24);
+    log('small at 24: small=' + coach.small + ' brows display=' + getComputedStyle(P.brows).display + ' fx display=' + getComputedStyle(P.fx).display);
+    coach.setSize(240);
+    // theme
+    coach.setTheme('dark'); log('dark vars: hood=' + svg.style.getPropertyValue('--coach-hood') + ' rim=' + svg.style.getPropertyValue('--coach-rim'));
+    document.getElementById('report').textContent = REP.join('\n');
+  }
+})();
+</script>
+</body>
+</html>

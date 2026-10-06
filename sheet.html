@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coach sheet</title>
+<style>
+  :root { --light-bg: #F6F5EF; --dark-bg: #151918; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 12px/1.35 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; background: var(--light-bg); color: #1E2220; }
+  header { padding: 16px 20px 4px; }
+  header h1 { margin: 0; font-size: 15px; }
+  header p { margin: 4px 0 0; color: #5d655f; max-width: 1100px; }
+  section { padding: 12px 20px 12px; }
+  section.dark { background: var(--dark-bg); color: #C9D3BF; }
+  h2 { margin: 0 0 6px; font-size: 12px; font-weight: 600; letter-spacing: .01em; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px 6px; align-items: flex-end; }
+  .cell { display: flex; flex-direction: column; align-items: center; min-width: 116px; }
+  .cell .lbl { font-size: 11px; opacity: .7; margin-top: 2px; white-space: nowrap; }
+  .sizes { gap: 8px 20px; }
+  .sizes .cell, .tight .cell { min-width: 0; }
+  .tight { gap: 8px 16px; }
+  .split { display: flex; }
+  .split > section { flex: 1; }
+  img.ref { display: block; width: 112px; height: 112px; }
+  pre { font: 11px/1.35 Menlo, monospace; white-space: pre-wrap; margin: 12px 20px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Coach "Fold" — final character (D142)</h1>
+  <p>Candidate 1's soft gable hood and mittens, with Fold's front fold and sage lining back, a bigger face window, one stroke weight for every eye mark, a hood ring over an oversized face (head turns move only the features), wrist pivots and a size-stepped dark rim. Rows B and D are mock poses: setVariant plus temporary transforms about PIVOTS.</p>
+</header>
+
+<section id="A"><h2>A · light · rest pose, then each eye variant (112 px)</h2><div class="row"></div></section>
+<section id="B"><h2>B · light · composed expressions (112 px)</h2><div class="row"></div></section>
+<section id="C" class="dark"><h2>C · dark · rest pose, then each eye variant (112 px)</h2><div class="row"></div></section>
+<section id="D" class="dark"><h2>D · dark · composed expressions (112 px)</h2><div class="row"></div></section>
+<div class="split">
+  <section id="E1"><h2>E · light · sizes (rest, then happy)</h2><div class="row sizes"></div></section>
+  <section id="E2" class="dark"><h2>E · dark · sizes (rest, then happy)</h2><div class="row sizes"></div></section>
+</div>
+<div class="split">
+  <section id="S1"><h2>S · light · expressions at 24 and 32 px (small mode)</h2><div class="row tight"></div></section>
+  <section id="S2" class="dark"><h2>S · dark · expressions at 24 and 32 px</h2><div class="row tight"></div></section>
+</div>
+<section id="F"><h2>F · other variants (mouth, brows, fx) and checks</h2><div class="row"></div></section>
+<section id="G"><h2>G · beside today's Fold (112 px, then 32 and 24)</h2><div class="row tight"></div></section>
+
+<script src="./coach.js"></script>
+<script>
+(function () {
+  var BC = window.BraviloCoach;
+
+  // Mock expressions: variants plus temporary transforms on the part groups around PIVOTS.
+  // Hand pivots are the wrists: x / y move the hand, rotate swings it from the wrist.
+  var MOCK = {
+    rest: {},
+    happy: { eyes: 'happy', mouth: 'smile',
+      parts: { body: { y: -2 }, handL: { x: -5, y: -62, rotate: -10 }, handR: { x: 5, y: -62, rotate: 10 } } },
+    proud: { eyes: 'happy', mouth: 'open', fx: 'spark',
+      parts: { body: { scaleX: 0.985, scaleY: 1.03 }, handR: { x: 13, y: -118, rotate: 6 }, handL: { x: 1, y: -4, rotate: -6 } } },
+    encourage: { eyes: 'happy', brows: 'raised',
+      parts: { body: { rotate: 2.5 }, face: { x: 2 }, handR: { x: -16, y: -8, rotate: -16, scale: 1.2 } } },
+    thinking: { eyes: 'up', brows: 'think', fx: 'dots',
+      parts: { face: { x: 2, y: -1 }, handR: { x: -42, y: -20, rotate: -22 } } },
+    sleepy: { eyes: 'closed', fx: 'zzz',
+      parts: { body: { scaleX: 1.01, scaleY: 0.975 }, handL: { y: 2 }, handR: { y: 2 } } },
+    concerned: { eyes: 'rest', brows: 'worried', mouth: 'soft',
+      parts: { body: { rotate: -3 }, face: { x: -1.5 }, handL: { x: -4, y: -32, rotate: 12 } } },
+    surprised: { eyes: 'wide', mouth: 'o', brows: 'raised',
+      parts: { body: { y: -4, scaleY: 1.03, scaleX: 0.985 }, handL: { x: -8, y: -30, rotate: -20 }, handR: { x: 8, y: -30, rotate: 20 } } },
+    welcomeBack: { eyes: 'happy', mouth: 'open',
+      parts: { body: { y: -2 }, handL: { x: -12, y: -46, rotate: -26 }, handR: { x: 12, y: -46, rotate: 26 } } },
+    chatOpen: { eyes: 'rest', mouth: 'smile',
+      parts: { handR: { x: 8, y: -72, rotate: 12 } } },
+    lookLeft: { eyes: 'left',
+      parts: { body: { rotate: -2 }, face: { x: -4 } } },
+    lookDown: { eyes: 'down',
+      parts: { body: { rotate: 0 }, face: { y: 2 } } }
+  };
+
+  function transformFor(part, t) {
+    var p = BC.PIVOTS[part];
+    var x = t.x || 0, y = t.y || 0, r = t.rotate || 0;
+    var sx = t.scaleX != null ? t.scaleX : (t.scale != null ? t.scale : 1);
+    var sy = t.scaleY != null ? t.scaleY : (t.scale != null ? t.scale : 1);
+    return 'translate(' + (x + p[0]) + ' ' + (y + p[1]) + ') rotate(' + r + ') scale(' + sx + ' ' + sy + ') translate(' + (-p[0]) + ' ' + (-p[1]) + ')';
+  }
+
+  function applyMock(coach, pose) {
+    Object.keys(coach.parts).forEach(function (k) { coach.parts[k].removeAttribute('transform'); });
+    ['eyes', 'mouth', 'brows', 'fx'].forEach(function (g) { coach.setVariant(g, pose[g] || BC.DEFAULTS[g]); });
+    var parts = pose.parts || {};
+    Object.keys(parts).forEach(function (k) { coach.parts[k].setAttribute('transform', transformFor(k, parts[k])); });
+    return coach;
+  }
+
+  function cell(row, label, theme, size, setup) {
+    var c = document.createElement('div'); c.className = 'cell';
+    var holder = document.createElement('div'); c.appendChild(holder);
+    var coach = BC.create(holder, { theme: theme, size: size });
+    if (setup) setup(coach);
+    var l = document.createElement('div'); l.className = 'lbl'; l.textContent = label; c.appendChild(l);
+    row.appendChild(c);
+    return coach;
+  }
+  function rowOf(id) { return document.querySelector('#' + id + ' .row'); }
+
+  function eyeRow(id, theme) {
+    var row = rowOf(id);
+    cell(row, 'rest pose', theme, 112);
+    BC.VARIANTS.eyes.forEach(function (v) {
+      cell(row, 'eyes: ' + v, theme, 112, function (c) { c.setVariant('eyes', v); });
+    });
+  }
+  function mockRow(id, theme) {
+    var row = rowOf(id);
+    Object.keys(MOCK).forEach(function (name) {
+      cell(row, name, theme, 112, function (c) { applyMock(c, MOCK[name]); });
+    });
+  }
+  function sizeRow(id, theme) {
+    var row = rowOf(id);
+    [24, 32, 48, 56, 112, 180].forEach(function (s) {
+      cell(row, s + ' px' + (s < BC.SMALL_BELOW ? ' (small)' : ''), theme, s);
+    });
+    [24, 32, 48].forEach(function (s) {
+      cell(row, s + ' happy', theme, s, function (c) { applyMock(c, MOCK.happy); });
+    });
+  }
+  function smallRow(id, theme) {
+    var row = rowOf(id);
+    ['rest', 'happy', 'proud', 'surprised', 'concerned', 'sleepy', 'thinking'].forEach(function (n) {
+      [24, 32].forEach(function (s) {
+        cell(row, n + ' ' + s, theme, s, function (c) { applyMock(c, MOCK[n]); });
+      });
+    });
+  }
+  function silhouette(c) {
+    ['--coach-hood', '--coach-face', '--coach-ink', '--coach-hand', '--coach-hand-shade', '--coach-rim'].forEach(function (k) {
+      c.svg.style.setProperty(k, '#1E2220');
+    });
+  }
+  function otherRow() {
+    var row = rowOf('F');
+    ['smile', 'open', 'o', 'soft'].forEach(function (v) {
+      cell(row, 'mouth: ' + v, 'light', 112, function (c) { c.setVariant('mouth', v); });
+    });
+    ['raised', 'worried', 'think'].forEach(function (v) {
+      cell(row, 'brows: ' + v, 'light', 112, function (c) { c.setVariant('brows', v); });
+    });
+    ['dots1', 'dots2', 'dots', 'zzz', 'spark'].forEach(function (v) {
+      cell(row, 'fx: ' + v, 'light', 112, function (c) { c.setVariant('fx', v); });
+    });
+    cell(row, 'silhouette 112', 'light', 112, silhouette);
+    cell(row, 'silhouette 24', 'light', 24, silhouette);
+    cell(row, 'head turn (face x +6)', 'light', 112, function (c) { applyMock(c, { eyes: 'right', parts: { face: { x: 6 } } }); });
+    cell(row, 'face pop (scale 1.06)', 'light', 112, function (c) { applyMock(c, { eyes: 'wide', parts: { face: { scale: 1.06 } } }); });
+    cell(row, 'wave +22 from wrist', 'light', 112, function (c) { applyMock(c, { eyes: 'happy', parts: { handR: { x: 10, y: -78, rotate: 22 } } }); });
+    cell(row, 'wave -14 from wrist', 'light', 112, function (c) { applyMock(c, { eyes: 'happy', parts: { handR: { x: 10, y: -78, rotate: -14 } } }); });
+    cell(row, 'blink (eyes scaleY .15)', 'light', 112, function (c) { applyMock(c, { parts: { eyes: { scaleY: 0.15 } } }); });
+  }
+  function foldRow() {
+    var row = rowOf('G');
+    [[112, 'today\'s Fold'], [32, '32'], [24, '24']].forEach(function (s) {
+      var c = document.createElement('div'); c.className = 'cell';
+      var img = document.createElement('img'); img.className = 'ref'; img.src = 'ref/fold-ref.png';
+      img.style.width = img.style.height = s[0] + 'px'; c.appendChild(img);
+      var l = document.createElement('div'); l.className = 'lbl'; l.textContent = s[1]; c.appendChild(l);
+      row.appendChild(c);
+    });
+    [112, 32, 24].forEach(function (s) { cell(row, s === 112 ? 'final Fold' : String(s), 'light', s); });
+    cell(row, 'final, dark', 'dark', 112).svg.style.background = '#151918';
+  }
+
+  // ---------- modes ----------
+  var q = new URLSearchParams(location.search);
+  function clearSections() { document.querySelectorAll('section, header, .split').forEach(function (s) { s.remove(); }); }
+
+  if (q.get('selftest')) {
+    // Contract self-check (SPEC §2) plus motion headroom. Prints PASS/FAIL lines into the page.
+    clearSections();
+    var out = [], fails = 0, ok = function (c, m) { if (!c) fails++; out.push((c ? 'PASS ' : 'FAIL ') + m); };
+    var host = document.createElement('div'); document.body.appendChild(host);
+    var c = BC.create(host, { theme: 'light', size: 112 });
+    var need = ['root', 'body', 'face', 'eyes', 'mouth', 'brows', 'handL', 'handR', 'fx', 'shadow'];
+    need.forEach(function (p) {
+      ok(c.parts[p] && c.parts[p].getAttribute('data-part') === p, 'part ' + p);
+      ok(Array.isArray(BC.PIVOTS[p]) && BC.PIVOTS[p].length === 2, 'pivot ' + p + ' ' + BC.PIVOTS[p]);
+    });
+    ok(!c.svg.querySelector('[transform]'), 'no static transforms anywhere in the markup');
+    ok(c.parts.shadow.parentNode === c.svg && !c.parts.root.contains(c.parts.shadow), 'shadow outside root');
+    ok(c.parts.root.contains(c.parts.handL) && !c.parts.body.contains(c.parts.handL) && !c.parts.body.contains(c.parts.handR), 'hands in root, outside body');
+    ['face', 'eyes', 'mouth', 'brows'].forEach(function (p) { ok(c.parts.body.contains(c.parts[p]), p + ' inside body'); });
+    ok(c.parts.body.querySelector('[data-hood]') && c.parts.face.compareDocumentPosition(c.parts.body.querySelector('[data-hood]')) & Node.DOCUMENT_POSITION_FOLLOWING, 'hood ring drawn over the face');
+    var req = { eyes: ['rest', 'happy', 'wide', 'closed', 'up', 'left', 'right', 'down'], mouth: ['none', 'smile', 'open', 'o', 'soft'],
+      brows: ['none', 'raised', 'worried', 'think'], fx: ['none', 'dots', 'zzz', 'spark'] };
+    Object.keys(req).forEach(function (g) {
+      req[g].forEach(function (v) {
+        ok(c.setVariant(g, v) === c, 'setVariant ' + g + ' ' + v + ' (chainable)');
+        var vis = Array.prototype.filter.call(c.parts[g].children, function (k) { return k.hasAttribute('data-variant') && k.getAttribute('display') !== 'none'; });
+        ok(vis.length === 1 && vis[0].getAttribute('data-variant') === v, 'exactly one visible ' + g + ' ' + v);
+      });
+      c.setVariant(g, BC.DEFAULTS[g]);
+    });
+    ok(c.setVariant('eyes', 'nope') === c && c.variants.eyes === 'rest', 'unknown variant leaves the coach unchanged');
+    ok(!c.svg.querySelector('text,filter,mask,linearGradient,radialGradient,clipPath,circle,ellipse,rect,line,polyline,polygon,image,use'), 'only <path> shapes; no text, filters, masks, gradients, clipPaths');
+    var cmds = {};
+    c.svg.querySelectorAll('path').forEach(function (e) { (e.getAttribute('d').match(/[A-Za-z]/g) || []).forEach(function (k) { cmds[k] = 1; }); });
+    ok(Object.keys(cmds).every(function (k) { return 'MLCQZ'.indexOf(k) >= 0; }), 'path commands only absolute M L C Q Z: ' + Object.keys(cmds).join(''));
+    var badColour = Array.prototype.some.call(c.svg.querySelectorAll('path'), function (e) {
+      var st = e.getAttribute('style') || ''; return /#|rgb/.test(st) || e.hasAttribute('fill') || e.hasAttribute('stroke');
+    });
+    ok(!badColour, 'colours only through CSS variables');
+    ok(c.setTheme('dark') === c && c.svg.style.getPropertyValue('--coach-hood').trim() === '#2A302C', 'setTheme dark (chainable)');
+    var rim = c.svg.querySelector('[data-rim]');
+    [[180, '2'], [112, '2.5'], [56, '4'], [24, '7']].forEach(function (s) {
+      c.setSize(s[0]); ok(rim.style.strokeWidth === s[1], 'rim ' + s[1] + ' at ' + s[0] + ' px');
+    });
+    c.setSize(24);
+    ok(c.small && c.parts.brows.getAttribute('display') === 'none', 'small mode hides the brows');
+    ok(c.parts.fx.querySelector('[data-variant="dots"] [data-set="small"]').getAttribute('display') !== 'none' &&
+       !c.parts.fx.querySelector('[data-variant="zzz"] [data-set="small"]').children.length &&
+       !c.parts.fx.querySelector('[data-variant="spark"] [data-set="small"]').children.length,
+       'small mode keeps only the thinking dots of the fx (their small set; zzz and spark vanish)');
+    ok(Array.prototype.every.call(c.svg.querySelectorAll('[data-detail]'), function (e) { return e.getAttribute('display') === 'none'; }), 'small mode hides fine detail (mitten shade, fold lining)');
+    ok(c.svg.querySelector('[data-variant="rest"] [data-set="small"]').getAttribute('display') !== 'none', 'small eye set shown at 24');
+    ok(c.setSize(112) === c && !c.small && !c.parts.brows.hasAttribute('display'), 'back to regular at 112 (chainable)');
+    c.setTheme('light');
+
+    // Face window area vs candidate 1's face (sampled), and the eye stroke family.
+    var hood = c.svg.querySelector('[data-hood]');
+    function areaOf(test) { var n = 0; for (var y = 0; y < 240; y += 1) for (var x = 0; x < 240; x += 1) if (test(x + .5, y + .5)) n++; return n; }
+    var outerP = document.createElementNS('http://www.w3.org/2000/svg', 'path'); outerP.setAttribute('d', BC.GEOMETRY.OUTER); c.svg.appendChild(outerP);
+    var fillP = document.createElementNS('http://www.w3.org/2000/svg', 'path'); fillP.setAttribute('d', BC.GEOMETRY.FACE_FILL); c.svg.appendChild(fillP);
+    function pt(x, y) { var p = c.svg.createSVGPoint(); p.x = x; p.y = y; return p; }
+    var windowArea = areaOf(function (x, y) { return outerP.isPointInFill(pt(x, y)) && !hood.isPointInFill(pt(x, y)); });
+    out.push('INFO visible face window ' + windowArea + ' unit² (same sampling: candidate 1 = 8332, candidate 3 = 10395)');
+    window.__WINDOW_AREA = windowArea;
+
+    // Motion headroom: stress frames must stay inside the 240 box; face fill must stay under the hood.
+    var STRESS = {
+      'squash 1.08/0.90': { parts: { body: { scaleX: 1.08, scaleY: 0.9 } } },
+      'stretch 0.94/1.10 + lift 10': { parts: { body: { scaleX: 0.94, scaleY: 1.1, y: -10 } } },
+      'hop 24': { parts: { root: { y: -24 } } },
+      'punch handR -128': { fx: 'spark', parts: { handR: { x: 13, y: -128, rotate: 8 } } },
+      'wave +22': { parts: { handR: { x: 10, y: -78, rotate: 22 } } },
+      'wave -14': { parts: { handR: { x: 10, y: -78, rotate: -14 } } },
+      'wave left -22': { parts: { handL: { x: -10, y: -78, rotate: -22 } } },
+      'lean 4': { parts: { body: { rotate: 4 } } },
+      'dots pulse 1.2': { fx: 'dots', parts: { fx: { scale: 1.2 } } },
+      'zzz drift': { fx: 'zzz', parts: { fx: { x: 4, y: -6 } } }
+    };
+    Object.keys(MOCK).forEach(function (k) { STRESS['mock ' + k] = MOCK[k]; });
+    function worstOverflow(m) {
+      var r = m.svg.getBoundingClientRect(), worst = 0, k = 240 / r.width;
+      m.svg.querySelectorAll('path').forEach(function (e) {
+        if (e.closest('[display="none"]')) return;
+        var b = e.getBoundingClientRect();
+        if (!b.width && !b.height) return;
+        worst = Math.max(worst, (r.left - b.left) * k, (r.top - b.top) * k, (b.right - r.right) * k, (b.bottom - r.bottom) * k);
+      });
+      return worst;
+    }
+    Object.keys(STRESS).forEach(function (name) {
+      var h = document.createElement('div'); document.body.appendChild(h);
+      var m = applyMock(BC.create(h, { size: 240 }), STRESS[name]);
+      var w = worstOverflow(m);
+      ok(w <= 0.25, 'inside the viewBox: ' + name + ' (overflow ' + w.toFixed(2) + ' units)');
+      h.remove();
+    });
+    // The cream fill is static in body (not in the face group), so face transforms move only the
+    // features; it must lie inside the silhouette. contract-test.html stress-tests face ±25° / 1.2.
+    var faceFillEl = c.svg.querySelector('[data-face-fill]');
+    ok(faceFillEl && faceFillEl.parentNode === c.parts.body && !c.parts.face.contains(faceFillEl), 'face fill is static in body, outside the face group');
+    (function () {
+      var len = fillP.getTotalLength(), bad = 0;
+      for (var i = 0; i < 400; i++) { var p = fillP.getPointAtLength(len * i / 400); if (!outerP.isPointInFill(pt(p.x, p.y))) bad++; }
+      ok(bad === 0, 'face fill lies inside the hood silhouette' + (bad ? ' (' + bad + ' points outside)' : ''));
+    })();
+    outerP.remove(); fillP.remove();
+    out.unshift(fails ? 'SELFTEST: ' + fails + ' FAIL' : 'SELFTEST: ALL PASS');
+    var pre = document.createElement('pre'); pre.id = 'selftest'; pre.textContent = out.join('\n'); document.body.appendChild(pre);
+  } else if (q.get('focus')) {
+    // ?focus=rest,happy,eyes:up&size=300&theme=dark draws only those poses, big, for close checks.
+    clearSections();
+    var theme = q.get('theme') || 'light', size = +(q.get('size') || 300);
+    var sec = document.createElement('section'); if (theme === 'dark') sec.className = 'dark';
+    var row = document.createElement('div'); row.className = 'row' + (size < 112 ? ' tight' : ''); sec.appendChild(row); document.body.appendChild(sec);
+    document.body.style.background = theme === 'dark' ? '#151918' : '#F6F5EF';
+    q.get('focus').split(',').forEach(function (name) {
+      var parts = name.split(':');
+      cell(row, name, theme, size, function (c) {
+        if (parts.length === 2) c.setVariant(parts[0], parts[1]);
+        else if (MOCK[name]) applyMock(c, MOCK[name]);
+      });
+    });
+  } else {
+    eyeRow('A', 'light'); mockRow('B', 'light');
+    eyeRow('C', 'dark'); mockRow('D', 'dark');
+    sizeRow('E1', 'light'); sizeRow('E2', 'dark');
+    smallRow('S1', 'light'); smallRow('S2', 'dark');
+    otherRow(); foldRow();
+  }
+  window.__SHEET = { MOCK: MOCK, applyMock: applyMock, transformFor: transformFor };
+})();
+</script>
+</body>
+</html>

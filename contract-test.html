@@ -1,0 +1,713 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coach contract test</title>
+<style>
+  :root { --light-bg: #F6F5EF; --dark-bg: #151918; --fail: #C0392B; --pass: #3E6B2A; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 12px/1.35 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; background: var(--light-bg); color: #1E2220; }
+  header { padding: 14px 20px 2px; }
+  header h1 { margin: 0; font-size: 15px; }
+  header p { margin: 4px 0 0; color: #5d655f; max-width: 1200px; }
+  section { padding: 10px 20px 14px; }
+  section.dark { background: var(--dark-bg); color: #C9D3BF; }
+  h2 { margin: 0 0 6px; font-size: 12px; font-weight: 600; }
+  h3 { margin: 8px 0 4px; font-size: 11px; font-weight: 600; opacity: .8; }
+  #summary { font: 600 13px/1.3 Menlo, monospace; margin: 0 0 6px; }
+  #summary.pass { color: var(--pass); } #summary.fail { color: var(--fail); }
+  #results { font: 11px/1.35 Menlo, monospace; white-space: pre-wrap; margin: 0; columns: 2; column-gap: 28px; }
+  #results .FAIL { color: var(--fail); font-weight: 700; }
+  #results .INFO { color: #5d655f; }
+  .groups { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+  .group { display: flex; flex-direction: column; }
+  .group .name { font: 600 11px/1.2 Menlo, monospace; margin-bottom: 2px; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: flex-end; }
+  .cell { display: flex; flex-direction: column; align-items: center; }
+  .stage { position: relative; }
+  .stage > svg.overlay { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+  .lbl { font-size: 10px; opacity: .8; margin-top: 2px; white-space: nowrap; text-align: center; font-family: Menlo, monospace; }
+  .lbl.bad { color: var(--fail); opacity: 1; font-weight: 700; }
+  .stress .stage { margin: 26px 26px 2px; }
+  .sizes .cell { min-width: 66px; }
+  canvas.px { image-rendering: pixelated; display: block; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Coach contract test (SPEC §2)</h1>
+  <p>Independent, adversarial checks of <code>coach.js</code> against the spec. Expected values are typed in from SPEC.md, not read back from coach.js. Section 2 rotates and scales every part about its pivot (red cross; dashed square = the 240 viewBox, drawn with overflow visible so anything that would clip shows outside it). Section 3 shows light and dark at 24, 48 and 112 px, plus the real 24 px pixels magnified.</p>
+</header>
+
+<section id="checks"><h2>1 · Contract checks</h2><div id="summary"></div><pre id="results"></pre></section>
+<section id="pivots" class="stress"><h2>2 · Pivot stress: each part rotated −25°, +25° and scaled 1.2 about its pivot (labels: viewBox overflow in units; gaps / cream outside hood / ink cut by the hood)</h2><div class="groups"></div></section>
+<section id="themesL"><h2>3a · Light (#F6F5EF) at 112, 48 and 24 px</h2><div class="sizes"></div></section>
+<section id="themesD" class="dark"><h2>3b · Dark (#151918) at 112, 48 and 24 px</h2><div class="sizes"></div></section>
+<section id="pixL"><h2>3c · Light, 24 px real pixels at @2x, magnified</h2><div class="row"></div></section>
+<section id="pixD" class="dark"><h2>3d · Dark, 24 px real pixels at @2x, magnified</h2><div class="row"></div></section>
+
+<script>
+  // ./coach.js by default; ?coach=<url> loads another build (used to mutation-test this page).
+  document.write('<script src="' + (new URLSearchParams(location.search).get('coach') || './coach.js').replace(/"/g, '') + '"><\/script>');
+</script>
+<script>
+(function () {
+  'use strict';
+  var NS = 'http://www.w3.org/2000/svg';
+  var q = new URLSearchParams(location.search);
+  var VIEW = q.get('view') || 'all';   // all | checks | pivots | themes
+  var BC = window.BraviloCoach;
+
+  // ------------------------------------------------------------ the spec, typed in from SPEC.md
+  var SPEC = {
+    viewBox: [0, 0, 240, 240],
+    parts: ['root', 'body', 'face', 'eyes', 'mouth', 'brows', 'handL', 'handR', 'fx', 'shadow'],
+    variants: {
+      eyes: ['rest', 'happy', 'wide', 'closed', 'up', 'left', 'right', 'down'],
+      mouth: ['none', 'smile', 'open', 'o', 'soft'],
+      brows: ['none', 'raised', 'worried', 'think'],
+      fx: ['none', 'dots', 'zzz', 'spark']
+    },
+    rest: { eyes: 'rest', mouth: 'none', brows: 'none', fx: 'none' },
+    themes: {
+      light: { '--coach-hood': '#1E2220', '--coach-rim': 'transparent', '--coach-face': '#FAF7ED', '--coach-ink': '#1E2220',
+        '--coach-hand': '#C5ED62', '--coach-hand-shade': '#94AF7C', '--coach-fx': '#94AF7C', '--coach-shadow': 'rgba(30,34,32,.10)' },
+      dark: { '--coach-hood': '#2A302C', '--coach-rim': 'RIM', '--coach-face': '#FAF7ED', '--coach-ink': '#1E2220',
+        '--coach-hand': '#C5ED62', '--coach-hand-shade': '#657D59', '--coach-fx': '#A4C584', '--coach-shadow': 'rgba(0,0,0,.35)' }
+    },
+    rimRGB: [201, 211, 191], rimAlpha: [0.45, 0.65],   // "#C9D3BF at about 55%"
+    smallBelow: 44
+  };
+  var TOKENS = Object.keys(SPEC.themes.light);
+
+  // ------------------------------------------------------------ reporting
+  var lines = [], fails = 0, passes = 0;
+  function pass(m) { passes++; lines.push(['PASS', m]); }
+  function fail(m) { fails++; lines.push(['FAIL', m]); console.error('FAIL ' + m); }
+  function info(m) { lines.push(['INFO', m]); }
+  function ok(c, m, why) { if (c) pass(m); else fail(m + (why ? ' (' + why + ')' : '')); return !!c; }
+  function guard(name, fn) { try { return fn(); } catch (e) { fail(name + ' threw: ' + (e && e.message)); } }
+  function f1(v) { return (Math.round(v * 10) / 10).toFixed(1); }
+
+  // ------------------------------------------------------------ helpers
+  function mk(tag, attrs, parent) {
+    var e = document.createElementNS(NS, tag);
+    for (var a in attrs) if (Object.prototype.hasOwnProperty.call(attrs, a)) e.setAttribute(a, attrs[a]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function div(cls, parent) { var d = document.createElement('div'); if (cls) d.className = cls; if (parent) parent.appendChild(d); return d; }
+
+  var probeHost = div(); probeHost.style.cssText = 'position:absolute;left:0;top:0;opacity:0;pointer-events:none';
+  document.body.appendChild(probeHost);
+  var colourProbe = document.createElement('i'); probeHost.appendChild(colourProbe);
+  function rgba(v) {
+    if (v == null) return null;
+    colourProbe.style.color = '';
+    colourProbe.style.color = String(v).trim();
+    if (!colourProbe.style.color) return null;
+    var m = getComputedStyle(colourProbe).color.match(/[\d.]+/g).map(Number);
+    return [m[0], m[1], m[2], m.length > 3 ? m[3] : 1];
+  }
+  function same(a, b) {
+    if (!a || !b) return false;
+    if (a[3] === 0 && b[3] === 0) return true;
+    return Math.abs(a[0] - b[0]) < 1 && Math.abs(a[1] - b[1]) < 1 && Math.abs(a[2] - b[2]) < 1 && Math.abs(a[3] - b[3]) < 0.011;
+  }
+  function shown(el) {
+    for (var n = el; n && n.nodeType === 1; n = n.parentNode) {
+      if (n.getAttribute('display') === 'none') return false;
+      var cs = getComputedStyle(n);
+      if (cs.display === 'none') return false;
+      if (n.localName === 'svg') break;
+    }
+    return getComputedStyle(el).visibility !== 'hidden';
+  }
+  function paint(el) {
+    var cs = getComputedStyle(el), sw = parseFloat(cs.strokeWidth) || 0;
+    var fc = cs.fill && cs.fill !== 'none' ? rgba(cs.fill) : null;
+    var sc = cs.stroke && cs.stroke !== 'none' ? rgba(cs.stroke) : null;
+    return { fill: fc && fc[3] > 0 ? fc : null, stroke: sc && sc[3] > 0 && sw > 0 ? sc : null, sw: sw };
+  }
+  function tokenColour(coach, t) { return rgba(getComputedStyle(coach.svg).getPropertyValue(t)); }
+  function relMatrix(el, ref) { return ref.getScreenCTM().inverse().multiply(el.getScreenCTM()); }
+  function scaleOf(M) { return Math.sqrt(Math.abs(M.a * M.d - M.b * M.c)); }
+  function outline(p, M, n) {
+    var len = p.getTotalLength(), pts = [];
+    n = n || Math.max(24, Math.min(240, Math.ceil(len / 1.5)));
+    for (var i = 0; i <= n; i++) {
+      var s = p.getPointAtLength(len * i / n);
+      pts.push(new DOMPoint(s.x, s.y).matrixTransform(M));
+    }
+    return pts;
+  }
+  function paintedPaths(root) {
+    return Array.prototype.filter.call(root.querySelectorAll('path'), function (p) {
+      if (!shown(p)) return false; var pa = paint(p); return !!(pa.fill || pa.stroke);
+    });
+  }
+  // Extent of everything painted under `root`, in the coordinates of `ref` (stroke included).
+  function extent(root, ref) {
+    var b = [Infinity, Infinity, -Infinity, -Infinity];
+    paintedPaths(root).forEach(function (p) {
+      var M = relMatrix(p, ref), pa = paint(p), r = pa.stroke ? pa.sw / 2 * scaleOf(M) : 0;
+      outline(p, M).forEach(function (pt) {
+        b[0] = Math.min(b[0], pt.x - r); b[1] = Math.min(b[1], pt.y - r);
+        b[2] = Math.max(b[2], pt.x + r); b[3] = Math.max(b[3], pt.y + r);
+      });
+    });
+    return b;
+  }
+  function overflow(b) { return isFinite(b[0]) ? Math.max(0, -b[0], -b[1], b[2] - 240, b[3] - 240) : 0; }
+  function centre(b) { return [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]; }
+  function inBox(p, b, m) { m = m || 0; return p[0] >= b[0] - m && p[0] <= b[2] + m && p[1] >= b[1] - m && p[1] <= b[3] + m; }
+  function bstr(b) { return '[' + b.map(f1).join(', ') + ']'; }
+
+  function transformFor(part, t) {
+    var p = BC.PIVOTS[part];
+    var x = t.x || 0, y = t.y || 0, r = t.rotate || 0;
+    var sx = t.scaleX != null ? t.scaleX : (t.scale != null ? t.scale : 1);
+    var sy = t.scaleY != null ? t.scaleY : (t.scale != null ? t.scale : 1);
+    return 'translate(' + (x + p[0]) + ' ' + (y + p[1]) + ') rotate(' + r + ') scale(' + sx + ' ' + sy + ') translate(' + (-p[0]) + ' ' + (-p[1]) + ')';
+  }
+  function setVariants(coach, v) {
+    Object.keys(SPEC.rest).forEach(function (g) { coach.setVariant(g, (v && v[g]) || SPEC.rest[g]); });
+  }
+  function visibleVariants(coach, group) {
+    return Array.prototype.filter.call(coach.parts[group].children, function (k) {
+      return k.hasAttribute('data-variant') && k.getAttribute('display') !== 'none' && getComputedStyle(k).display !== 'none';
+    }).map(function (k) { return k.getAttribute('data-variant'); });
+  }
+  function probe(opts) { var h = div(null, probeHost); return BC.create(h, opts || { theme: 'light', size: 240 }); }
+  function drop(coach) { var h = coach.svg.parentNode; if (h && h.parentNode === probeHost) probeHost.removeChild(h); }
+
+  // Hood geometry (body coordinates): the hood is the largest hood-coloured fill in body, outside face.
+  // Its first subpath is the outer silhouette, the rest cut the face window.
+  var scratch = mk('svg', { viewBox: '0 0 240 240', width: 240, height: 240 }); probeHost.appendChild(scratch);
+  // isPointInFill wants an SVGPoint in some browsers (older Chromium rejects a DOMPoint or a plain
+  // object), and a DOMPointInit in others: build an SVGPoint, fall back to a plain object.
+  function fillHas(path, pt) {
+    var sp;
+    try { sp = scratch.createSVGPoint(); sp.x = pt.x; sp.y = pt.y; } catch (e) { sp = { x: pt.x, y: pt.y }; }
+    return path.isPointInFill(sp);
+  }
+  function hoodGeometry(coach) {
+    var hoodC = tokenColour(coach, '--coach-hood'), best = null, bestA = 0;
+    coach.parts.body.querySelectorAll('path').forEach(function (p) {
+      if (coach.parts.face.contains(p) || !shown(p)) return;
+      var pa = paint(p); if (!pa.fill || !same(pa.fill, hoodC)) return;
+      var bb = p.getBBox(), a = bb.width * bb.height; if (a > bestA) { bestA = a; best = p; }
+    });
+    if (!best) return null;
+    var d = best.getAttribute('d'), subs = d.split(/(?=M)/).filter(function (s) { return s.trim(); });
+    var outer = mk('path', { d: subs[0], style: 'fill:#000' }, scratch);
+    var ring = mk('path', { d: d, style: 'fill:#000;fill-rule:' + (getComputedStyle(best).fillRule || 'nonzero') }, scratch);
+    var bb = outer.getBBox(), win = [];
+    if (subs.length > 1) {
+      for (var y = bb.y + 1; y < bb.y + bb.height; y += 2.5) for (var x = bb.x + 1; x < bb.x + bb.width; x += 2.5) {
+        var pt = new DOMPoint(x, y);
+        if (fillHas(outer, pt) && !fillHas(ring, pt)) win.push(pt);
+      }
+    }
+    return { hood: best, outer: outer, ring: ring, subpaths: subs.length, windowPts: win, outerBox: [bb.x, bb.y, bb.x + bb.width, bb.y + bb.height],
+      inWindow: function (pt) { return fillHas(outer, pt) && !fillHas(ring, pt); } };
+  }
+  // Does the face window stay cream, does cream stay inside the hood, does ink stay inside the window?
+  function faceIntegrity(coach, geo) {
+    var body = coach.parts.body, faceC = tokenColour(coach, '--coach-face'), inkC = tokenColour(coach, '--coach-ink');
+    var creams = [], inks = [];
+    paintedPaths(coach.svg).forEach(function (p) {
+      var pa = paint(p);
+      if (pa.fill && same(pa.fill, faceC)) creams.push({ p: p, M: relMatrix(p, body) });
+      if (coach.parts.face.contains(p) && ((pa.fill && same(pa.fill, inkC)) || (pa.stroke && same(pa.stroke, inkC)))) inks.push({ p: p, M: relMatrix(p, body) });
+    });
+    creams.forEach(function (c) { c.Mi = c.M.inverse(); });
+    var gaps = 0;
+    geo.windowPts.forEach(function (w) {
+      var hit = creams.some(function (c) { return fillHas(c.p, new DOMPoint(w.x, w.y).matrixTransform(c.Mi)); });
+      if (!hit) gaps++;
+    });
+    var poke = 0;
+    creams.forEach(function (c) { outline(c.p, c.M).forEach(function (pt) { if (!fillHas(geo.outer, pt)) poke++; }); });
+    var cut = 0, inkN = 0;
+    inks.forEach(function (c) { outline(c.p, c.M, 40).forEach(function (pt) { inkN++; if (!geo.inWindow(pt)) cut++; }); });
+    return { gaps: gaps, poke: poke, cut: cut, inkN: inkN, creams: creams.length };
+  }
+
+  // ============================================================ 1. programmatic contract checks
+  function runChecks() {
+    // ---- the global
+    if (!ok(BC && typeof BC === 'object', 'window.BraviloCoach exists')) return;
+    ok(typeof BC.create === 'function', 'BraviloCoach.create is a function');
+    ok(Array.isArray(BC.VIEWBOX) && BC.VIEWBOX.join() === SPEC.viewBox.join(), 'VIEWBOX is [0, 0, 240, 240]', String(BC.VIEWBOX));
+    ok(BC.PIVOTS && typeof BC.PIVOTS === 'object', 'PIVOTS exists');
+    ok(BC.VARIANTS && typeof BC.VARIANTS === 'object', 'VARIANTS exists');
+    SPEC.parts.forEach(function (p) {
+      var v = BC.PIVOTS && BC.PIVOTS[p];
+      ok(Array.isArray(v) && v.length === 2 && isFinite(v[0]) && isFinite(v[1]), 'PIVOTS.' + p + ' is [x, y]', String(v));
+      ok(v && v[0] >= 0 && v[0] <= 240 && v[1] >= 0 && v[1] <= 240, 'PIVOTS.' + p + ' lies inside the viewBox', String(v));
+    });
+    Object.keys(SPEC.variants).forEach(function (g) {
+      var have = (BC.VARIANTS && BC.VARIANTS[g]) || [];
+      var missing = SPEC.variants[g].filter(function (n) { return have.indexOf(n) < 0; });
+      ok(!missing.length, 'VARIANTS.' + g + ' lists every required name', 'missing ' + missing.join(', '));
+      var extra = have.filter(function (n) { return SPEC.variants[g].indexOf(n) < 0; });
+      if (extra.length) info('VARIANTS.' + g + ' extras beyond the spec: ' + extra.join(', '));
+    });
+
+    // ---- create and the DOM shape
+    var host = div(null, probeHost);
+    var c = guard('create(container, {theme, size})', function () { return BC.create(host, { theme: 'light', size: 240 }); });
+    if (!ok(c && c.svg && c.parts, 'create returns { svg, parts, … }')) return;
+    var svg = c.svg;
+    ok(svg instanceof SVGSVGElement && svg.parentNode === host, 'coach.svg is an <svg> appended to the container');
+    ok((svg.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number).join() === '0,0,240,240', '<svg viewBox="0 0 240 240">', svg.getAttribute('viewBox'));
+    ok(typeof c.setVariant === 'function' && typeof c.setTheme === 'function' && typeof c.setSize === 'function', 'coach has setVariant, setTheme, setSize');
+    ok(typeof c.small === 'boolean', 'coach.small is a boolean', typeof c.small);
+    var pk = Object.keys(c.parts);
+    ok(SPEC.parts.every(function (p) { return pk.indexOf(p) >= 0; }), 'coach.parts has all ten parts', 'has ' + pk.join(','));
+    SPEC.parts.forEach(function (p) {
+      var el = c.parts[p], all = svg.querySelectorAll('[data-part="' + p + '"]');
+      ok(el && el.localName === 'g' && el.getAttribute('data-part') === p && svg.contains(el), 'part ' + p + ' is <g data-part="' + p + '">');
+      ok(all.length === 1 && all[0] === el, 'exactly one data-part="' + p + '" in the svg', all.length + ' found');
+    });
+    var dp = Array.prototype.map.call(svg.querySelectorAll('[data-part]'), function (e) { return e.getAttribute('data-part'); });
+    var extraParts = dp.filter(function (n) { return SPEC.parts.indexOf(n) < 0; });
+    if (extraParts.length) info('extra data-part groups: ' + extraParts.join(', '));
+    var P = c.parts;
+    ok(P.shadow && !P.root.contains(P.shadow) && svg.contains(P.shadow), 'shadow sits outside root');
+    ok(SPEC.parts.filter(function (p) { return p !== 'shadow' && p !== 'root'; }).every(function (p) { return P.root.contains(P[p]); }), 'root wraps every other part');
+    ok(['face', 'eyes', 'mouth', 'brows'].every(function (p) { return P.body.contains(P[p]); }), 'body holds face, eyes, mouth and brows');
+    ok(!P.body.contains(P.handL) && !P.body.contains(P.handR), 'handL and handR sit outside body');
+    ok(svg.querySelectorAll('[transform]').length === 0, 'no transform attribute anywhere at creation (the player owns them)');
+
+    // ---- variants
+    Object.keys(SPEC.variants).forEach(function (g) {
+      var kids = Array.prototype.filter.call(P[g].children, function (k) { return k.hasAttribute('data-variant'); });
+      SPEC.variants[g].forEach(function (n) {
+        var hits = kids.filter(function (k) { return k.getAttribute('data-variant') === n; });
+        ok(hits.length === 1 && hits[0].localName === 'g', g + ': <g data-variant="' + n + '"> is a direct child, once', hits.length + ' found');
+      });
+      var vis = visibleVariants(c, g);
+      ok(vis.length === 1 && vis[0] === SPEC.rest[g], g + ': at creation exactly the rest variant "' + SPEC.rest[g] + '" is visible', vis.join(','));
+    });
+    Object.keys(SPEC.variants).forEach(function (g) {
+      SPEC.variants[g].forEach(function (n) {
+        guard('setVariant ' + g + ' ' + n, function () { c.setVariant(g, n); });
+        var vis = visibleVariants(c, g);
+        ok(vis.length === 1 && vis[0] === n, 'setVariant(' + g + ', ' + n + '): exactly one visible', vis.join(',') || 'none visible');
+        var drawn = paintedPaths(P[g]).length;
+        if (n === 'none') ok(drawn === 0, g + ' none draws nothing', drawn + ' paths');
+        else ok(drawn > 0, g + ' ' + n + ' draws something', '0 paths');
+      });
+      c.setVariant(g, SPEC.rest[g]);
+    });
+    guard('setVariant with an unknown name', function () {
+      c.setVariant('eyes', 'happy'); c.setVariant('eyes', 'no-such-variant');
+      ok(visibleVariants(c, 'eyes').length === 1, 'unknown variant name keeps exactly one eye variant visible', visibleVariants(c, 'eyes').join(','));
+      c.setVariant('nope', 'rest');
+      pass('setVariant on an unknown group does not throw');
+      c.setVariant('eyes', 'rest');
+    });
+    // fx shapes
+    c.setVariant('fx', 'dots'); ok(paintedPaths(P.fx).length === 3, 'fx dots: three dots', paintedPaths(P.fx).length);
+    c.setVariant('fx', 'zzz'); var zn = paintedPaths(P.fx).length; ok(zn === 2 || zn === 3, 'fx zzz: two or three z paths', zn);
+    c.setVariant('fx', 'spark');
+    var sp = paintedPaths(P.fx);
+    ok(sp.length === 3 && sp.every(function (p) { return p.getTotalLength() <= 16; }), 'fx spark: three tiny short lines', sp.map(function (p) { return f1(p.getTotalLength()); }).join(','));
+    c.setVariant('fx', 'none');
+    // the mouth is small
+    ['smile', 'open', 'o', 'soft'].forEach(function (n) {
+      c.setVariant('mouth', n); var b = extent(P.mouth, svg);
+      ok(b[2] - b[0] <= 34, 'mouth ' + n + ' is small (≤ 34 units wide)', f1(b[2] - b[0]));
+    });
+    c.setVariant('mouth', 'none');
+
+    // ---- forbidden markup
+    var bad = svg.querySelectorAll('text, tspan, textPath, filter, mask, linearGradient, radialGradient, pattern, clipPath, foreignObject, image, style, use, marker');
+    ok(bad.length === 0, 'no <text>, <filter>, <mask>, gradients, patterns, clipPaths, images or <style>',
+      Array.prototype.map.call(bad, function (e) { return e.localName; }).join(','));
+    var urlRefs = Array.prototype.filter.call(svg.querySelectorAll('*'), function (e) {
+      return Array.prototype.some.call(e.attributes, function (a) { return /url\(|filter\s*:|mask\s*:|clip-path/i.test(a.value) || /^(filter|mask|clip-path)$/.test(a.name); });
+    });
+    ok(urlRefs.length === 0, 'no url(…) references, filter, mask or clip-path styles', urlRefs.length + ' elements');
+    var tags = {}; svg.querySelectorAll('*').forEach(function (e) { tags[e.localName] = (tags[e.localName] || 0) + 1; });
+    info('element census: ' + Object.keys(tags).map(function (k) { return k + ' ' + tags[k]; }).join(', '));
+
+    // ---- colours: only the spec tokens
+    var literal = [], foreignVar = [];
+    svg.querySelectorAll('path, g').forEach(function (e) {
+      ['fill', 'stroke', 'color', 'stop-color'].forEach(function (a) { if (e.hasAttribute(a)) literal.push(e.localName + '@' + a); });
+      var st = e.getAttribute('style') || '';
+      st.split(';').forEach(function (decl) {
+        var kv = decl.split(':'); if (kv.length < 2) return;
+        var k = kv[0].trim(), v = kv.slice(1).join(':').trim();
+        if (!/^(fill|stroke|color)$/.test(k) || v === 'none') return;
+        var m = v.match(/^var\((--[\w-]+)\)$/);
+        if (!m) literal.push(k + ':' + v); else if (TOKENS.indexOf(m[1]) < 0) foreignVar.push(m[1]);
+      });
+    });
+    ok(literal.length === 0, 'shapes colour only through var(--coach-*)', literal.slice(0, 4).join(' | '));
+    ok(foreignVar.length === 0, 'only the eight spec tokens are used', foreignVar.join(','));
+
+    // ---- setTheme swaps the CSS variables on the svg
+    ['light', 'dark', 'light'].forEach(function (t) {
+      guard('setTheme ' + t, function () { c.setTheme(t); });
+      TOKENS.forEach(function (tok) {
+        var raw = svg.style.getPropertyValue(tok), got = rgba(raw), want = SPEC.themes[t][tok];
+        if (want === 'RIM') {
+          ok(got && got[0] === SPEC.rimRGB[0] && got[1] === SPEC.rimRGB[1] && got[2] === SPEC.rimRGB[2] && got[3] >= SPEC.rimAlpha[0] && got[3] <= SPEC.rimAlpha[1],
+            t + ' ' + tok + ' = #C9D3BF at about 55%', raw);
+        } else ok(same(got, rgba(want)), t + ' ' + tok + ' = ' + want, 'got ' + (raw || 'unset'));
+      });
+    });
+    // computed colours of the real shapes follow the theme
+    function colourAudit(t) {
+      c.setTheme(t); c.setVariant('eyes', 'rest');
+      var hood = hoodGeometry(c);
+      ok(hood, t + ': the hood (a large hood-coloured fill in body) exists');
+      var face = paintedPaths(c.svg).filter(function (p) { var pa = paint(p); return pa.fill && same(pa.fill, rgba('#FAF7ED')); });
+      ok(face.length > 0, t + ': the face is cream #FAF7ED');
+      var eyes = paintedPaths(P.eyes);
+      ok(eyes.length > 0 && eyes.every(function (p) { var pa = paint(p); return same(pa.stroke || pa.fill, rgba('#1E2220')); }), t + ': the eyes are dark ink #1E2220 on the cream face');
+      ['handL', 'handR'].forEach(function (h) {
+        var ps = paintedPaths(P[h]);
+        var lime = ps.filter(function (p) { var pa = paint(p); return pa.fill && same(pa.fill, rgba('#C5ED62')); });
+        var shade = ps.filter(function (p) { var pa = paint(p); return pa.fill && same(pa.fill, rgba(SPEC.themes[t]['--coach-hand-shade'])); });
+        var other = ps.length - lime.length - shade.length;
+        ok(lime.length > 0 && other === 0, t + ': ' + h + ' is lime mitten (+ sage shade) only', lime.length + ' lime, ' + shade.length + ' shade, ' + other + ' other');
+        ok(shade.length <= 1, t + ': ' + h + ' has at most one inner-shade shape', shade.length);
+        ok(ps.every(function (p) { return !paint(p).stroke; }), t + ': ' + h + ' has no outline');
+      });
+      var stroked = paintedPaths(c.svg).filter(function (p) { return paint(p).stroke; });
+      var outlines = stroked.filter(function (p) { return !(P.eyes.contains(p) || P.mouth.contains(p) || P.brows.contains(p) || P.fx.contains(p)); });
+      if (t === 'light') ok(outlines.length === 0, 'light: no outlines (only features and fx are stroked)', outlines.length + ' outlined shapes');
+      else ok(outlines.length >= 1 && outlines.every(function (p) { return same(paint(p).stroke, tokenColour(c, '--coach-rim')); }), 'dark: the only outline is the rim, in --coach-rim', outlines.length + ' outlined shapes');
+      var sh = paintedPaths(P.shadow);
+      ok(sh.length === 1, t + ': the ground shadow is one flat shape', sh.length);
+    }
+    colourAudit('light'); colourAudit('dark'); c.setTheme('light');
+
+    // two coaches are independent
+    var c2 = probe({ theme: 'dark', size: 48 });
+    c.setTheme('light'); c.setVariant('eyes', 'happy');
+    ok(same(tokenColour(c2, '--coach-hood'), rgba('#2A302C')) && visibleVariants(c2, 'eyes')[0] === 'rest', 'two coaches on one page do not share theme or variants');
+    c.setVariant('eyes', 'rest'); drop(c2);
+    // a missing or unknown theme still gives a full palette
+    var c3 = guard('create without options', function () { return probe({}); });
+    ok(c3 && TOKENS.every(function (t) { return c3.svg.style.getPropertyValue(t) !== ''; }), 'create(container) with no options sets every token');
+    if (c3) drop(c3);
+
+    // ---- player-owned transforms survive the coach's own calls
+    P.body.setAttribute('transform', 'translate(0 -5)');
+    P.eyes.setAttribute('transform', 'translate(0 0) scale(1 0.5)');
+    c.setTheme('dark'); c.setVariant('eyes', 'happy'); c.setSize(24); c.setSize(112); c.setTheme('light');
+    ok(P.body.getAttribute('transform') === 'translate(0 -5)' && P.eyes.getAttribute('transform') === 'translate(0 0) scale(1 0.5)',
+      'setTheme / setVariant / setSize leave the part transforms alone');
+    ok(SPEC.parts.every(function (p) { return svg.querySelector('[data-part="' + p + '"]') === P[p]; }), 'setSize keeps the same part elements (no rebuild)');
+    P.body.removeAttribute('transform'); P.eyes.removeAttribute('transform'); c.setVariant('eyes', 'rest');
+
+    // ---- small mode (below 44 px): brows hidden, only the thinking dots of the fx (a bigger set),
+    //      bigger bolder eyes (SPEC §2 as amended)
+    c.setVariant('brows', 'raised'); c.setVariant('fx', 'dots');
+    function eyeInk(coach) {
+      var ps = paintedPaths(coach.parts.eyes), w = 0, M = null;
+      ps.forEach(function (p) { var pa = paint(p); if (pa.stroke) w = Math.max(w, pa.sw); });
+      var b = extent(coach.parts.eyes, coach.svg);
+      return { stroke: w, box: b, w: b[2] - b[0], h: b[3] - b[1] };
+    }
+    var bigEye = eyeInk(c);
+    [24, 32, 43, 43.9].forEach(function (s) {
+      c.setSize(s);
+      ok(c.small === true, s + ' px: small is true');
+      ok(!paintedPaths(P.brows).length, s + ' px: brows are hidden (with brows raised)');
+      ok(paintedPaths(P.fx).length === 3, s + ' px: fx dots still draw three dots (the small set)', paintedPaths(P.fx).length);
+      ok(!P.eyes.hasAttribute('transform'), s + ' px: small mode does not take the eyes transform slot');
+    });
+    c.setSize(24);
+    var smallEye = eyeInk(c);
+    (function () {
+      var sd = paintedPaths(P.fx).map(function (p) { var b = p.getBBox(); return b.width; });
+      ok(Math.min.apply(null, sd) * 32 / 240 >= 2, 'small thinking dots are at least 2 px across at 32 px (' + sd.map(function (w) { return f1(w * 32 / 240); }).join(', ') + ' px)');
+      var sb = extent(P.fx, svg);
+      ok(sb[0] >= 0 && sb[1] >= 0 && sb[2] <= 240 && sb[3] <= 240, 'small thinking dots lie inside the viewBox', bstr(sb));
+      ['zzz', 'spark'].forEach(function (n) { c.setVariant('fx', n); ok(!paintedPaths(P.fx).length, 'small mode hides fx ' + n); });
+      c.setVariant('fx', 'dots');
+    })();
+    ok(smallEye.stroke >= bigEye.stroke * 1.3, 'small eyes are bolder (stroke ' + f1(smallEye.stroke) + ' vs ' + f1(bigEye.stroke) + ' units)');
+    ok(smallEye.h >= bigEye.h * 1.3 && smallEye.w >= bigEye.w, 'small eyes are bigger (' + f1(smallEye.w) + '×' + f1(smallEye.h) + ' vs ' + f1(bigEye.w) + '×' + f1(bigEye.h) + ')');
+    ok(smallEye.stroke * 24 / 240 >= 1.75, 'at 24 px an eye mark is at least 1.75 px thick (' + f1(smallEye.stroke * 24 / 240 * 100) / 100 + ' px)');
+    [44, 48, 112, 180].forEach(function (s) {
+      c.setSize(s);
+      ok(c.small === false, s + ' px: small is false');
+      ok(visibleVariants(c, 'brows')[0] === 'raised' && paintedPaths(P.brows).length > 0 && paintedPaths(P.fx).length === 3, s + ' px: brows and fx come back with their variants');
+    });
+    ok(+svg.getAttribute('width') === 180 || Math.round(svg.getBoundingClientRect().width) === 180, 'setSize(180) renders 180 px wide', svg.getBoundingClientRect().width);
+    var c4 = probe({ theme: 'light', size: 24 });
+    ok(c4.small === true && !paintedPaths(c4.parts.brows).length, 'create with size 24 starts in small mode');
+    c4.setSize('32'); ok(c4.small === true && Math.round(c4.svg.getBoundingClientRect().width) === 32, 'setSize accepts a numeric string', c4.svg.getBoundingClientRect().width);
+    drop(c4);
+    c.setSize(240); setVariants(c, SPEC.rest);
+
+    // ---- standalone SVG export (porting, saving an .svg)
+    var xml = new XMLSerializer().serializeToString(svg);
+    var doc = new DOMParser().parseFromString(xml, 'image/svg+xml');
+    ok(!doc.querySelector('parsererror') && doc.documentElement.namespaceURI === NS, 'serialises to well-formed standalone SVG');
+    ok((xml.match(/\sxmlns=/g) || []).length === 1, 'exactly one xmlns declaration when serialised', (xml.match(/\sxmlns=/g) || []).length);
+
+    // ---- pivots sit where the spec says
+    var PV = BC.PIVOTS;
+    var bodyB = extent(P.body, svg), rootB = extent(P.root, svg), shadowB = extent(P.shadow, svg);
+    var hoodG = hoodGeometry(c);
+    ok(hoodG && hoodG.subpaths >= 2 && hoodG.windowPts.length > 500, 'hood is a ring with a face window', hoodG && (hoodG.subpaths + ' subpaths, ' + hoodG.windowPts.length + ' window samples'));
+    var hb = hoodG.outerBox;
+    ok(Math.abs(PV.body[0] - (hb[0] + hb[2]) / 2) <= 1.5 && Math.abs(PV.body[1] - hb[3]) <= 2, 'body pivot is the bottom centre of the hood', PV.body + ' vs ' + bstr(hb));
+    ok(Math.abs(PV.root[0] - (rootB[0] + rootB[2]) / 2) <= 2 && Math.abs(PV.root[1] - hb[3]) <= 3, 'root pivot is the bottom centre (where it stands)', PV.root + ' vs ' + bstr(rootB));
+    ok(Math.abs(PV.shadow[0] - centre(shadowB)[0]) <= 1 && Math.abs(PV.shadow[1] - centre(shadowB)[1]) <= 1, 'shadow pivot is the ellipse centre', PV.shadow + ' vs ' + bstr(shadowB));
+    var wb = (function () { var b = [Infinity, Infinity, -Infinity, -Infinity]; hoodG.windowPts.forEach(function (p) { b[0] = Math.min(b[0], p.x); b[1] = Math.min(b[1], p.y); b[2] = Math.max(b[2], p.x); b[3] = Math.max(b[3], p.y); }); return b; })();
+    ok(hoodG.inWindow(new DOMPoint(PV.face[0], PV.face[1])) && Math.abs(PV.face[0] - centre(wb)[0]) <= 2 && Math.abs(PV.face[1] - centre(wb)[1]) <= 6, 'face pivot is the centre of the face window', PV.face + ' vs window ' + bstr(wb));
+    var restEyes = extent(P.eyes, svg);
+    ok(Math.abs(PV.eyes[0] - centre(restEyes)[0]) <= 1 && Math.abs(PV.eyes[1] - centre(restEyes)[1]) <= 1.5, 'eyes pivot is the centre of the rest eyes (blink stays in place)', PV.eyes + ' vs ' + bstr(restEyes));
+    c.setSize(24); var smallRest = extent(P.eyes, svg); c.setSize(240);
+    ok(Math.abs(PV.eyes[1] - centre(smallRest)[1]) <= 1.5, 'eyes pivot is also the centre of the small rest eyes', PV.eyes + ' vs ' + bstr(smallRest));
+    ['happy', 'wide', 'closed'].forEach(function (n) {
+      c.setVariant('eyes', n); var b = extent(P.eyes, svg);
+      ok(inBox(PV.eyes, b, 1), 'eyes pivot lies inside the ' + n + ' eyes', bstr(b));
+    });
+    c.setVariant('eyes', 'rest');
+    ['smile', 'open', 'o', 'soft'].forEach(function (n) {
+      c.setVariant('mouth', n); var b = extent(P.mouth, svg);
+      ok(inBox(PV.mouth, b, 2), 'mouth pivot lies inside the ' + n + ' mouth', PV.mouth + ' vs ' + bstr(b));
+    });
+    c.setVariant('mouth', 'none');
+    ['raised', 'worried'].forEach(function (n) {
+      c.setVariant('brows', n); var b = extent(P.brows, svg);
+      ok(Math.abs(PV.brows[0] - centre(b)[0]) <= 1 && PV.brows[1] >= b[1] - 2 && PV.brows[1] <= b[3] + 2, 'brows pivot is centred on the ' + n + ' brows', PV.brows + ' vs ' + bstr(b));
+    });
+    c.setVariant('brows', 'none');
+    ['handL', 'handR'].forEach(function (h) {
+      var b = extent(P[h], svg), w = b[2] - b[0], ht = b[3] - b[1], p = PV[h];
+      var xOk = p[0] >= b[0] + w * 0.2 && p[0] <= b[2] - w * 0.2;
+      var yBase = p[1] >= b[3] - ht * 0.25 && p[1] <= b[3] + 2, yMid = Math.abs(p[1] - (b[1] + b[3]) / 2) <= ht * 0.2;
+      ok(xOk && (yBase || yMid), h + ' pivot is the mitten\'s base or centre', p + ' vs ' + bstr(b) + (yBase ? ' (base)' : yMid ? ' (centre)' : ''));
+    });
+    ok(Math.abs(PV.handL[0] + PV.handR[0] - 240) <= 0.5 && Math.abs(PV.handL[1] - PV.handR[1]) <= 0.5, 'hand pivots mirror each other about x = 120', PV.handL + ' / ' + PV.handR);
+    c.setVariant('fx', 'dots'); var db = extent(P.fx, svg);
+    ok(inBox(PV.fx, db, 2), 'fx pivot lies inside the thinking dots', PV.fx + ' vs ' + bstr(db));
+    ['zzz', 'spark'].forEach(function (n) {
+      c.setVariant('fx', n); var b = extent(P.fx, svg), cc = centre(b);
+      info('fx ' + n + ' centre ' + cc.map(f1) + ' is ' + f1(Math.hypot(cc[0] - PV.fx[0], cc[1] - PV.fx[1])) + ' units from the fx pivot');
+    });
+    c.setVariant('fx', 'none');
+
+    // ---- a blink (eyes scaleY 0.15 about the eyes pivot) closes each eye variant in place
+    SPEC.variants.eyes.forEach(function (n) {
+      c.setVariant('eyes', n); var b = extent(P.eyes, svg), drift = Math.abs(centre(b)[1] - PV.eyes[1]) * 0.85;
+      if (['rest', 'happy', 'wide', 'closed', 'left', 'right'].indexOf(n) >= 0) ok(drift <= 2, 'blink on ' + n + ' eyes closes in place (drift ' + f1(drift) + ' units)');
+      else info('blink on ' + n + ' eyes drifts ' + f1(drift) + ' units toward the eye line (look eyes are the rest pill moved; a blink-to-swap from rest looks natural)');
+    });
+    c.setVariant('eyes', 'rest');
+
+    // ---- one eye language: every stroked eye mark has the same weight, per set
+    [240, 24].forEach(function (s) {
+      c.setSize(s); var ws = {};
+      SPEC.variants.eyes.forEach(function (n) {
+        c.setVariant('eyes', n);
+        paintedPaths(P.eyes).forEach(function (p) {
+          var pa = paint(p); if (pa.stroke) ws[f1(pa.sw)] = 1;
+          var cs = getComputedStyle(p); if (pa.stroke && cs.strokeLinecap !== 'round') ws['butt-cap'] = 1;
+        });
+      });
+      ok(Object.keys(ws).length === 1, (s < SPEC.smallBelow ? 'small' : 'regular') + ' eyes: one round-capped stroke weight for every eye mark', Object.keys(ws).join(', '));
+    });
+    c.setSize(240); c.setVariant('eyes', 'rest');
+
+    // ---- zzz are rounded z shapes; brows and fx stay hidden when changed while small
+    c.setVariant('fx', 'zzz');
+    ok(paintedPaths(P.fx).every(function (p) { var cs = getComputedStyle(p); return cs.strokeLinecap === 'round' && cs.strokeLinejoin === 'round'; }), 'zzz strokes have round caps and joins');
+    c.setSize(24); c.setVariant('brows', 'worried'); c.setVariant('fx', 'zzz');
+    ok(!paintedPaths(P.brows).length && !paintedPaths(P.fx).length, 'small mode: brows and fx zzz set while small stay hidden');
+    c.setVariant('fx', 'dots');
+    c.setSize(48);
+    ok(visibleVariants(c, 'brows')[0] === 'worried' && paintedPaths(P.brows).length && paintedPaths(P.fx).length === 3, 'growing out of small mode shows the variants set while small');
+    c.setSize(240); setVariants(c, SPEC.rest);
+
+    // ---- the hood is softly rounded: no point on the silhouette is sharper than a small radius
+    (function () {
+      var o = hoodG.outer, len = o.getTotalLength(), step = 1.5, minR = Infinity, at = null;
+      var pts = []; for (var l = 0; l < len; l += step) pts.push(o.getPointAtLength(l));
+      for (var i = 0; i < pts.length; i++) {
+        var a = pts[(i - 2 + pts.length) % pts.length], m = pts[i], b = pts[(i + 2) % pts.length];
+        var h1 = Math.atan2(m.y - a.y, m.x - a.x), h2 = Math.atan2(b.y - m.y, b.x - m.x), turn = Math.abs(Math.atan2(Math.sin(h2 - h1), Math.cos(h2 - h1)));
+        var r = turn > 1e-6 ? (2 * step) / turn : Infinity; if (r < minR) { minR = r; at = m; }
+      }
+      ok(minR >= 8, 'hood silhouette has no sharp point (tightest radius ' + f1(minR) + ' units at ' + f1(at.x) + ', ' + f1(at.y) + ')');
+      var top = null; pts.forEach(function (p) { if (!top || p.y < top.y) top = p; });
+      ok(Math.abs(top.x - 120) <= 3, 'hood top is centred (x ' + f1(top.x) + ')');
+    })();
+    ok(!P.handL.contains(P.handR) && !P.handR.contains(P.handL), 'handL and handR are independent groups');
+
+    // ---- rest pose fits with headroom, and how far root and body can tilt before clipping
+    var restB = extent(c.svg, svg);
+    ok(overflow(restB) === 0, 'rest pose sits inside the viewBox', bstr(restB));
+    info('rest pose extent ' + bstr(restB));
+    ['body', 'root'].forEach(function (part) {
+      var lim = [-1, 1].map(function (sgn) {
+        var lo = 0, hi = 40;
+        for (var i = 0; i < 14; i++) {
+          var mid = (lo + hi) / 2; P[part].setAttribute('transform', transformFor(part, { rotate: sgn * mid }));
+          if (overflow(extent(c.svg, svg)) <= 0.25) lo = mid; else hi = mid;
+        }
+        P[part].removeAttribute('transform'); return lo;
+      });
+      ok(Math.min(lim[0], lim[1]) >= 8, part + ' can tilt at least ±8° before anything leaves the viewBox (−' + f1(lim[0]) + '° / +' + f1(lim[1]) + '°)');
+    });
+    drop(c);
+    return hoodG;
+  }
+
+  // ============================================================ 2. pivot stress grid
+  var STRESS_ROWS = [
+    { part: 'root', v: {} }, { part: 'body', v: {} },
+    { part: 'face', v: { eyes: 'rest', mouth: 'smile', brows: 'raised' } },
+    { part: 'eyes', v: {} }, { part: 'eyes', v: { eyes: 'up', brows: 'think' }, tag: 'eyes (up)' },
+    { part: 'mouth', v: { mouth: 'open', eyes: 'happy' } },
+    { part: 'brows', v: { brows: 'raised' } }, { part: 'brows', v: { brows: 'worried' }, tag: 'brows (worried)' },
+    { part: 'handL', v: {} }, { part: 'handR', v: {} },
+    { part: 'fx', v: { fx: 'dots' }, tag: 'fx (dots)' }, { part: 'fx', v: { fx: 'zzz' }, tag: 'fx (zzz)' },
+    { part: 'fx', v: { fx: 'spark' }, tag: 'fx (spark)' }, { part: 'shadow', v: {} }
+  ];
+  var STRESS_COLS = [['rest', null], ['rot −25°', { rotate: -25 }], ['rot +25°', { rotate: 25 }], ['scale 1.2', { scale: 1.2 }]];
+
+  function runStress(geo, draw) {
+    var wrap = document.querySelector('#pivots .groups'), CELL = draw ? +(q.get('cell') || 112) : 112;
+    var only = draw && q.get('only') ? q.get('only').split(',') : null;
+    STRESS_ROWS.forEach(function (r) {
+      if (only && only.indexOf(r.tag || r.part) < 0 && only.indexOf(r.part) < 0) return;
+      var grp = div('group', draw ? wrap : null), name = div('name', grp); name.textContent = r.tag || r.part;
+      var row = div('row', grp);
+      STRESS_COLS.forEach(function (col) {
+        var cell = div('cell', row), stage = div('stage', cell);
+        stage.style.width = stage.style.height = CELL + 'px';
+        if (!draw) probeHost.appendChild(cell);
+        var coach = BC.create(stage, { theme: 'light', size: CELL });
+        coach.svg.style.overflow = 'visible';
+        setVariants(coach, r.v);
+        if (col[1]) coach.parts[r.part].setAttribute('transform', transformFor(r.part, col[1]));
+        var ov = overflow(extent(coach.svg, coach.svg));
+        var fi = faceIntegrity(coach, geo);
+        var label = 'ovf ' + f1(ov) + ' · ' + fi.gaps + '/' + fi.poke + '/' + fi.cut;
+        var what = (r.tag || r.part) + ' ' + col[0];
+        var clipOk = ov <= 0.5;
+        var faceOk = fi.gaps === 0 && fi.poke === 0;
+        var cutOk = fi.cut <= fi.inkN * 0.02;
+        if (draw) {
+          var lbl = div('lbl' + (clipOk && faceOk && cutOk ? '' : ' bad'), cell);
+          lbl.textContent = col[0] + ' · ' + label;
+          var ovl = mk('svg', { 'class': 'overlay', viewBox: '0 0 240 240', width: CELL, height: CELL });
+          mk('rect', { x: 0, y: 0, width: 240, height: 240, style: 'fill:none;stroke:#C0392B;stroke-opacity:.55;stroke-width:1.6;stroke-dasharray:6 5' }, ovl);
+          var pv = BC.PIVOTS[r.part];
+          mk('path', { d: 'M ' + (pv[0] - 9) + ' ' + pv[1] + ' L ' + (pv[0] + 9) + ' ' + pv[1] + ' M ' + pv[0] + ' ' + (pv[1] - 9) + ' L ' + pv[0] + ' ' + (pv[1] + 9), style: 'fill:none;stroke:#E8402F;stroke-width:3' }, ovl);
+          stage.appendChild(ovl);
+        } else {
+          ok(clipOk, 'stress ' + what + ': stays inside the viewBox', 'overflow ' + f1(ov) + ' units');
+          ok(faceOk, 'stress ' + what + ': face window stays cream, no cream outside the hood', fi.gaps + ' gap samples, ' + fi.poke + ' cream points outside');
+          ok(cutOk, 'stress ' + what + ': face ink stays inside the window', fi.cut + ' of ' + fi.inkN + ' ink samples under the hood');
+          probeHost.removeChild(cell);
+        }
+      });
+    });
+  }
+
+  // ============================================================ 3. themes and sizes
+  var POSES = [
+    ['rest', {}], ['happy', { eyes: 'happy', mouth: 'smile' }], ['big moment', { eyes: 'happy', mouth: 'open', fx: 'spark' }],
+    ['surprised', { eyes: 'wide', mouth: 'o', brows: 'raised' }], ['thinking', { eyes: 'up', brows: 'think', fx: 'dots' }],
+    ['sleepy', { eyes: 'closed', fx: 'zzz' }], ['concerned', { brows: 'worried', mouth: 'soft' }], ['look left', { eyes: 'left' }],
+    ['look down', { eyes: 'down' }]
+  ];
+  function themeSection(id, theme, draw) {
+    var wrap = document.querySelector('#' + id + ' .sizes');
+    [112, 48, 24].forEach(function (s) {
+      var h = document.createElement('h3'); h.textContent = s + ' px' + (s < SPEC.smallBelow ? ' (small mode)' : '');
+      var row = div('row');
+      if (draw) { wrap.appendChild(h); wrap.appendChild(row); }
+      POSES.forEach(function (p) {
+        var cell = div('cell', row), holder = div(null, cell);
+        if (!draw) probeHost.appendChild(cell);
+        var coach = BC.create(holder, { theme: theme, size: s });
+        setVariants(coach, p[1]);
+        if (draw) { var l = div('lbl', cell); l.textContent = p[0]; }
+        else {
+          var small = s < SPEC.smallBelow;
+          var problems = [];
+          if (coach.small !== small) problems.push('small=' + coach.small);
+          // Small mode (SPEC §2 as amended): no brows; of the fx only the thinking dots (small set).
+          if (small && paintedPaths(coach.parts.brows).length) problems.push('brows shown');
+          if (small && p[1].fx !== 'dots' && paintedPaths(coach.parts.fx).length) problems.push('fx ' + p[1].fx + ' shown');
+          if (small && p[1].fx === 'dots' && paintedPaths(coach.parts.fx).length !== 3) problems.push('small thinking dots missing');
+          if (!small && p[1].brows && !paintedPaths(coach.parts.brows).length) problems.push('brows missing');
+          if (!small && p[1].fx && !paintedPaths(coach.parts.fx).length) problems.push('fx missing');
+          var eyes = paintedPaths(coach.parts.eyes);
+          if (!eyes.length || !eyes.every(function (e) { var pa = paint(e); return same(pa.stroke || pa.fill, rgba('#1E2220')); })) problems.push('eyes not dark ink');
+          var rimV = paintedPaths(coach.svg).some(function (e) { var pa = paint(e); return pa.stroke && same(pa.stroke, tokenColour(coach, '--coach-rim')) && !coach.parts.face.contains(e) && !coach.parts.fx.contains(e); });
+          if (theme === 'dark' && !rimV) problems.push('no rim in dark');
+          if (theme === 'light' && rimV) problems.push('rim in light');
+          if (overflow(extent(coach.svg, coach.svg)) > 0.5) problems.push('clips');
+          ok(!problems.length, theme + ' ' + s + ' px ' + p[0], problems.join(', '));
+          probeHost.removeChild(cell);
+        }
+      });
+    });
+  }
+  function pixelSection(id, theme) {
+    var row = document.querySelector('#' + id + ' .row'), DPR = 2, ZOOM = 6;
+    POSES.forEach(function (p) {
+      var cell = div('cell', row), holder = div(null, probeHost);
+      var coach = BC.create(holder, { theme: theme, size: 24 });
+      setVariants(coach, p[1]);
+      var xml = new XMLSerializer().serializeToString(coach.svg);
+      probeHost.removeChild(holder);
+      var cv = document.createElement('canvas'); cv.className = 'px';
+      cv.width = cv.height = 24 * DPR; cv.style.width = cv.style.height = (24 * ZOOM) + 'px';
+      cv.style.background = theme === 'dark' ? '#151918' : '#F6F5EF';
+      cell.appendChild(cv);
+      var img = new Image();
+      img.onload = function () { cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height); };
+      img.onerror = function () { fail('24 px raster of ' + theme + ' ' + p[0] + ' failed to load'); flush(); };
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
+      var actual = div(null, cell); actual.style.marginTop = '4px';
+      setVariants(BC.create(actual, { theme: theme, size: 24 }), p[1]);   // the same pose at true size
+      var l = div('lbl', cell); l.textContent = p[0];
+    });
+  }
+
+  // ============================================================ run
+  function flush() {
+    window.__CONTRACT = { fails: fails, passes: passes, lines: lines };
+    var res = document.getElementById('results'), sum = document.getElementById('summary');
+    if (!res || !sum) return;   // a view without the checks section
+    res.innerHTML = '';
+    lines.forEach(function (l) { var s = document.createElement('span'); s.className = l[0]; s.textContent = l[0] + ' ' + l[1] + '\n'; res.appendChild(s); });
+    sum.textContent = fails ? 'CONTRACT: ' + fails + ' FAIL, ' + passes + ' PASS' : 'CONTRACT: ALL PASS (' + passes + ' checks)';
+    sum.className = fails ? 'fail' : 'pass';
+    window.__CONTRACT = { fails: fails, passes: passes, lines: lines };
+  }
+  var geo = guard('contract checks', runChecks);
+  if (geo) guard('pivot stress checks', function () { runStress(geo, false); });
+  guard('theme checks', function () { themeSection('themesL', 'light', false); themeSection('themesD', 'dark', false); });
+  if (VIEW === 'all' || VIEW === 'pivots') { if (geo) guard('pivot grid', function () { runStress(geo, true); }); }
+  if (VIEW === 'all' || VIEW === 'themes') {
+    guard('theme grid', function () { themeSection('themesL', 'light', true); themeSection('themesD', 'dark', true); pixelSection('pixL', 'light'); pixelSection('pixD', 'dark'); });
+  }
+  var keep = { all: ['checks', 'pivots', 'themesL', 'themesD', 'pixL', 'pixD'], checks: ['checks'], pivots: ['checks', 'pivots'], themes: ['themesL', 'themesD', 'pixL', 'pixD'] }[VIEW] || [];
+  document.querySelectorAll('body > section').forEach(function (s) { if (keep.indexOf(s.id) < 0) s.remove(); });
+  if (VIEW !== 'all' && VIEW !== 'checks') { var hd = document.querySelector('header'); if (hd) hd.remove(); }
+  flush();
+  if (VIEW === 'pivots') document.getElementById('results').style.display = 'none';
+  console.log(fails ? 'CONTRACT: ' + fails + ' FAIL' : 'CONTRACT: ALL PASS (' + passes + ' checks)');
+})();
+</script>
+</body>
+</html>

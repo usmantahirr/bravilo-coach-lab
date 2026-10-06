@@ -1,0 +1,13 @@
+{
+  "name": "bravilo-coach-lab",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bravilo's coach character and its expression animations, as portable motion data, with a phone-friendly lab to review them.",
+  "scripts": {
+    "build": "node tools/build-lab.mjs",
+    "build:local": "node tools/build-lab.mjs --local"
+  },
+  "devDependencies": {
+    "playwright": "^1.43.1"
+  }
+}

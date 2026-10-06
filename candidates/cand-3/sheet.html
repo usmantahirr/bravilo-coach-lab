@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coach sheet, candidate 3</title>
+<style>
+  :root { --light-bg: #F6F5EF; --dark-bg: #151918; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 12px/1.35 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; background: var(--light-bg); color: #1E2220; }
+  header { padding: 18px 24px 6px; }
+  header h1 { margin: 0; font-size: 16px; }
+  header p { margin: 4px 0 0; color: #5d655f; }
+  .band { padding: 14px 24px 18px; }
+  .band.light { background: var(--light-bg); color: #1E2220; }
+  .band.dark { background: var(--dark-bg); color: #E8EDE3; }
+  .band h2 { margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .02em; }
+  .row { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+  .cell { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 40px; }
+  .cell .label { font-size: 11px; opacity: .7; white-space: nowrap; }
+  .split { display: flex; gap: 0; }
+  .split > .band { flex: 1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Coach, candidate 3: "iconic"</h1>
+  <p>Bold soft-peaked hood, Fold's front-fold drape as the face's lower edge, chunky eyes for 24 pt. Rows B and D are mock poses set with setVariant plus temporary transforms about the pivots.</p>
+</header>
+
+<section class="band light"><h2>A · light · rest, then each eye variant (112 px)</h2><div class="row" id="rowA"></div></section>
+<section class="band light"><h2>B · light · mock expressions (112 px)</h2><div class="row" id="rowB"></div></section>
+<section class="band dark"><h2>C · dark · rest, then each eye variant (112 px)</h2><div class="row" id="rowC"></div></section>
+<section class="band dark"><h2>D · dark · mock expressions (112 px)</h2><div class="row" id="rowD"></div></section>
+<div class="split">
+  <section class="band light"><h2>E · light · sizes</h2><div class="row" id="rowEL"></div></section>
+  <section class="band dark"><h2>E · dark · sizes</h2><div class="row" id="rowED"></div></section>
+</div>
+<section class="band light"><h2>F · other variants (mouth, brows, fx) and checks</h2><div class="row" id="rowF"></div></section>
+
+<script src="./coach.js"></script>
+<script>
+(function () {
+  var C = window.BraviloCoach;
+
+  // transform about a part's pivot: translate(x,y) then rotate/scale around the pivot
+  function setPart(coach, name, t) {
+    var p = C.PIVOTS[name];
+    var x = t.x || 0, y = t.y || 0, r = t.r || 0;
+    var sx = t.sx != null ? t.sx : (t.s != null ? t.s : 1);
+    var sy = t.sy != null ? t.sy : (t.s != null ? t.s : 1);
+    coach.parts[name].setAttribute('transform',
+      'translate(' + (x + p[0]) + ' ' + (y + p[1]) + ') rotate(' + r + ') scale(' + sx + ' ' + sy + ') translate(' + (-p[0]) + ' ' + (-p[1]) + ')');
+  }
+
+  function cell(row, label, theme, size, setup) {
+    var wrap = document.createElement('div');
+    wrap.className = 'cell';
+    var coach = C.create(wrap, { theme: theme, size: size });
+    if (setup) setup(coach);
+    var l = document.createElement('div');
+    l.className = 'label';
+    l.textContent = label;
+    wrap.appendChild(l);
+    document.getElementById(row).appendChild(wrap);
+    return coach;
+  }
+
+  var POSES = [
+    ['rest', {}, {}],
+    ['happy', { eyes: 'happy', mouth: 'smile' },
+      { handL: { x: -9, y: -78, r: -22 }, handR: { x: 9, y: -78, r: 22 }, body: { sy: 1.01 } }],
+    ['proud', { eyes: 'happy', mouth: 'open', fx: 'spark' },
+      { handR: { x: 6, y: -138, r: 10 }, handL: { x: 2, y: -8, r: -6 }, body: { sy: 1.03, sx: 0.99 } }],
+    ['encourage', { eyes: 'happy' },
+      { handR: { x: -40, y: -10, r: -12, s: 1.18 }, body: { r: -2 } }],
+    ['thinking', { eyes: 'up', brows: 'think', fx: 'dots' },
+      { handR: { x: -51, y: -19, r: -25 }, face: { x: 2, y: -2 } }],
+    ['sleepy', { eyes: 'closed', fx: 'zzz' },
+      { body: { sy: 0.97, sx: 1.01 }, handL: { y: 3 }, handR: { y: 3 } }],
+    ['concerned', { eyes: 'rest', brows: 'worried', mouth: 'soft' },
+      { body: { r: -3 }, handL: { x: 10, y: -44, r: 8 } }],
+    ['surprised', { eyes: 'wide', mouth: 'o', brows: 'raised' },
+      { body: { sy: 1.04, sx: 0.98 }, handL: { x: -4, y: -30, r: -22 }, handR: { x: 4, y: -30, r: 22 } }]
+  ];
+
+  function eyesRow(row, theme) {
+    cell(row, 'rest pose', theme, 112);
+    C.VARIANTS.eyes.forEach(function (v) {
+      cell(row, 'eyes: ' + v, theme, 112, function (c) { c.setVariant('eyes', v); });
+    });
+  }
+  function posesRow(row, theme) {
+    POSES.forEach(function (p) {
+      cell(row, p[0], theme, 112, function (c) {
+        Object.keys(p[1]).forEach(function (g) { c.setVariant(g, p[1][g]); });
+        Object.keys(p[2]).forEach(function (n) { setPart(c, n, p[2][n]); });
+      });
+    });
+  }
+
+  eyesRow('rowA', 'light');
+  posesRow('rowB', 'light');
+  eyesRow('rowC', 'dark');
+  posesRow('rowD', 'dark');
+
+  [24, 32, 48, 56, 112, 180].forEach(function (s) {
+    cell('rowEL', s + ' px', 'light', s);
+  });
+  [24, 32, 48, 56, 112, 180].forEach(function (s) {
+    cell('rowED', s + ' px', 'dark', s);
+  });
+
+  // F: remaining variants and checks
+  ['smile', 'open', 'o', 'soft'].forEach(function (v) {
+    cell('rowF', 'mouth: ' + v, 'light', 112, function (c) { c.setVariant('mouth', v); });
+  });
+  ['raised', 'worried', 'think'].forEach(function (v) {
+    cell('rowF', 'brows: ' + v, 'light', 112, function (c) { c.setVariant('brows', v); });
+  });
+  ['dots1', 'dots2'].forEach(function (v) {
+    cell('rowF', 'fx: ' + v, 'light', 112, function (c) { c.setVariant('fx', v); });
+  });
+  function silhouette(c) {
+    ['--coach-hood', '--coach-face', '--coach-ink', '--coach-hand', '--coach-hand-shade'].forEach(function (k) {
+      c.svg.style.setProperty(k, '#1E2220');
+    });
+  }
+  cell('rowF', 'silhouette 112', 'light', 112, silhouette);
+  cell('rowF', 'silhouette 24', 'light', 24, silhouette);
+  cell('rowF', 'happy 24', 'light', 24, function (c) { c.setVariant('eyes', 'happy'); });
+  cell('rowF', 'closed 24', 'light', 24, function (c) { c.setVariant('eyes', 'closed'); });
+  cell('rowF', 'smile 32', 'light', 32, function (c) { c.setVariant('eyes', 'happy'); c.setVariant('mouth', 'smile'); });
+})();
+</script>
+</body>
+</html>

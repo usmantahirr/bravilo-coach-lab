@@ -1,0 +1,1380 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bravilo Coach Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap">
+<style>
+  /* Layout: a review bench for the coach. Controls on top, one card per moment (one column on a
+     phone, two or three on a desk), the dock button to try by hand, then the size check, today's
+     Fold next to the new one, and the 5-second test. Each card's stage is the app's own
+     background, so the coach is judged where it will live. */
+  :root {
+    --page: #F6F5EF;          /* app background, light */
+    --surface: #FFFFFF;
+    --stage: #F6F5EF;
+    --ink: #1E2220;
+    --muted: #5C655E;
+    --line: #E2E1D7;
+    --line-strong: #CBCABE;
+    --lime: #C5ED62;
+    --on-lime: #1E2220;
+    --sage: #94AF7C;
+    --sage-ink: #4E6B3A;
+    --ring: #6E8F55;
+    --focus: #2F5D1B;
+    --track: #E0DFD5;
+    --tick: #6E8F55;
+    --knob: #FFFFFF;
+    --knob-edge: #CBCABE;
+    --notice-bg: #FFF4E5;
+    --notice-ink: #7A3E0C;
+    --bar-shadow: 0 6px 24px rgba(30, 34, 32, .14);
+    --right: #3E6B2A;
+    --wrong: #9A3B1E;
+    /* The two app backgrounds for the size check: the same in both page themes. */
+    --app-light: #F6F5EF;
+    --app-dark: #151918;
+    --app-light-ink: #5C655E;
+    --app-dark-ink: #A9B4A6;
+    --app-light-edge: #E2E1D7;
+    --app-dark-edge: #2C3330;
+
+    --font-display: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-text: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+    --coach-size: 112px;
+    --radius-card: 20px;
+    --radius-stage: 14px;
+    --thumb: 26px;            /* scrubber thumb; the rail insets ticks and seeks by half of it */
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page: #151918;
+      --surface: #1C211F;
+      --stage: #151918;
+      --ink: #E8ECE4;
+      --muted: #9BA69A;
+      --line: #2A302D;
+      --line-strong: #3B4440;
+      --sage: #A4C584;
+      --sage-ink: #A4C584;
+      --ring: #C5ED62;
+      --focus: #C5ED62;
+      --track: #343C38;
+      --tick: #A4C584;
+      --knob: #E8ECE4;
+      --knob-edge: #3B4440;
+      --notice-bg: #3A2A18;
+      --notice-ink: #F2C894;
+      --bar-shadow: 0 6px 24px rgba(0, 0, 0, .45);
+      --right: #A4C584;
+      --wrong: #F2A98A;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --page: #151918;
+    --surface: #1C211F;
+    --stage: #151918;
+    --ink: #E8ECE4;
+    --muted: #9BA69A;
+    --line: #2A302D;
+    --line-strong: #3B4440;
+    --sage: #A4C584;
+    --sage-ink: #A4C584;
+    --ring: #C5ED62;
+    --focus: #C5ED62;
+    --track: #343C38;
+    --tick: #A4C584;
+    --knob: #E8ECE4;
+    --knob-edge: #3B4440;
+    --notice-bg: #3A2A18;
+    --notice-ink: #F2C894;
+    --bar-shadow: 0 6px 24px rgba(0, 0, 0, .45);
+    --right: #A4C584;
+    --wrong: #F2A98A;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font: 400 15px/1.5 var(--font-text);
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  .wrap {
+    max-width: 1240px;
+    margin-inline: auto;
+    padding-inline: clamp(16px, 4vw, 40px);
+    padding-block: 28px 56px;
+    display: grid;
+    gap: 20px;
+  }
+  h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+  p { margin: 0; }
+  code, .mono { font-family: var(--font-mono); font-size: 0.86em; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .vh {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+    overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+
+  /* ---------------------------------------------------------------- header */
+  .top { display: grid; gap: 6px; padding-top: 4px; }
+  .top h1 { font-weight: 800; font-size: clamp(28px, 7vw, 42px); line-height: 1.08; letter-spacing: -0.02em; }
+  .top p { color: var(--muted); max-width: 66ch; font-size: 16px; text-wrap: pretty; }
+  .jump { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 14px; }
+  .jump a { color: var(--sage-ink); font-weight: 600; text-underline-offset: 3px; padding-block: 6px; }
+  .notice {
+    background: var(--notice-bg); color: var(--notice-ink);
+    border-radius: 12px; padding: 10px 14px; font-size: 14px;
+  }
+  .notice[hidden] { display: none; }
+
+  /* ---------------------------------------------------------------- controls */
+  .controls {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-card);
+    padding: 14px 16px 16px;
+    display: grid;
+    gap: 12px;
+  }
+  .ctl { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
+  .ctl-label {
+    font: 600 12px/1.2 var(--font-text); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+  }
+  .seg {
+    display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px;
+    border: 1px solid var(--line); border-radius: 999px; background: var(--page);
+  }
+  .seg input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+  .seg label {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 34px; min-width: 44px; padding: 0 12px; border-radius: 999px;
+    font: 600 13px/1 var(--font-text); color: var(--muted); cursor: pointer;
+    font-variant-numeric: tabular-nums; user-select: none; -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  @media (pointer: coarse) { .seg label { min-height: 40px; } }
+  :root.ready .seg label { transition: background-color .15s ease, color .15s ease; }
+  .seg input:checked + label { background: var(--lime); color: var(--on-lime); }
+  .seg input:focus-visible + label { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+  .switch {
+    display: inline-flex; align-items: center; gap: 10px; cursor: pointer; min-height: 42px;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .switch .track {
+    position: relative; width: 48px; height: 30px; border-radius: 999px;
+    background: var(--track); border: 1px solid var(--line-strong);
+  }
+  .switch .track::before {
+    content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--knob); border: 1px solid var(--knob-edge);
+  }
+  :root.ready .switch .track { transition: background-color .15s ease; }
+  :root.ready .switch .track::before { transition: transform .18s ease, background-color .15s ease; }
+  .switch input:checked + .track { background: var(--lime); border-color: var(--lime); }
+  .switch input:checked + .track::before { transform: translateX(18px); background: var(--on-lime); border-color: var(--on-lime); }
+  .switch input:focus-visible + .track { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .switch .state { font: 600 13px/1 var(--font-text); color: var(--muted); min-width: 2.2em; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 44px; padding: 0 18px; border-radius: 999px;
+    font: 600 14px/1 var(--font-text); cursor: pointer;
+    border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink);
+    transition: background-color .15s ease, border-color .15s ease, transform .1s ease;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn svg { width: 14px; height: 14px; flex: none; fill: currentColor; }
+  .btn.primary { background: var(--lime); border-color: var(--lime); color: var(--on-lime); }
+  @media (hover: hover) {
+    .seg label:hover { color: var(--ink); }
+    .btn:hover { border-color: var(--ink); }
+    .btn.primary:hover { border-color: var(--on-lime); }
+  }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  #play-all { width: 100%; }
+  .hint { color: var(--muted); font-size: 13.5px; max-width: 72ch; }
+
+  @media (min-width: 900px) {
+    .controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px 28px; padding: 16px 20px 18px; }
+    .ctl { flex-direction: column; align-items: flex-start; justify-content: flex-start; }
+    #play-all { width: auto; margin-left: auto; padding: 0 24px; }
+  }
+
+  /* ---------------------------------------------------------------- cards */
+  .grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  @media (min-width: 720px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .card.wide-2 { grid-column: 1 / -1; } }
+  @media (min-width: 1080px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .card.wide-2 { grid-column: auto; } }
+
+  .card {
+    min-width: 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-card);
+    padding: 10px;
+    display: flex; flex-direction: column; gap: 12px;
+    scroll-margin-block: 24px 96px;
+    transition: border-color .2s ease, box-shadow .2s ease;
+  }
+  .card.is-current { border-color: var(--ring); box-shadow: 0 0 0 1px var(--ring); }
+  .stage {
+    background: var(--stage);
+    border-radius: var(--radius-stage);
+    height: calc(var(--coach-size) + 36px);
+    min-height: 112px;
+    display: grid; place-items: center;
+    transition: box-shadow .2s ease;
+  }
+  .card.is-playing .stage { box-shadow: inset 0 0 0 2px var(--ring); }
+  .stage svg { max-width: 100%; height: auto; }
+  .card-body { display: flex; flex-direction: column; gap: 8px; padding: 2px 6px 6px; flex: 1; min-width: 0; }
+  .card-head { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+  .card-head h2 { font-weight: 700; font-size: 19px; line-height: 1.2; letter-spacing: -0.01em; }
+  .meta { font: 500 13px/1.3 var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .plays { font-size: 14px; }
+  .k {
+    font: 600 12px/1 var(--font-text); letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--sage-ink); margin-right: 6px;
+  }
+  .feel { font-size: 13.5px; color: var(--muted); }
+  .card .seg { align-self: flex-start; }
+
+  .transport { margin-top: auto; padding-top: 6px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: center; }
+  .transport .btn { min-width: 104px; }
+  .scrub { position: relative; min-width: 0; display: grid; gap: 2px; }
+  /* The rail takes the touches (a tap or a drag anywhere on it seeks); vertical swipes still
+     scroll the page. The range input underneath keeps the keyboard and the screen reader. */
+  .scrub .rail { position: relative; height: 44px; touch-action: pan-y; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .ticks { position: absolute; left: calc(var(--thumb) / 2); right: calc(var(--thumb) / 2); top: 50%; height: 14px; transform: translateY(-50%); pointer-events: none; }
+  .tick { position: absolute; top: 0; width: 2px; height: 14px; margin-left: -1px; border-radius: 1px; background: var(--tick); }
+  .scrub input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    position: relative; z-index: 1; display: block;
+    width: 100%; height: 44px; margin: 0; background: transparent; pointer-events: none;
+    --p: 100%;
+  }
+  .scrub input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px; border-radius: 2px;
+    background: linear-gradient(to right, var(--sage) var(--p), transparent var(--p));
+  }
+  .scrub input[type="range"]::-moz-range-track { height: 4px; border-radius: 2px; background: transparent; }
+  .scrub input[type="range"]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--sage); }
+  .scrub input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: var(--thumb); height: var(--thumb); margin-top: -11px; border-radius: 50%;
+    background: var(--lime); border: 2px solid var(--on-lime);
+  }
+  .scrub input[type="range"]::-moz-range-thumb {
+    width: 22px; height: 22px; border-radius: 50%; background: var(--lime); border: 2px solid var(--on-lime);
+  }
+  .scrub input[type="range"]:disabled::-webkit-slider-thumb { opacity: .45; }
+  .scrub .base { position: absolute; left: calc(var(--thumb) / 2); right: calc(var(--thumb) / 2); top: 50%; height: 4px; margin-top: -2px; border-radius: 2px; background: var(--track); }
+  .scrub input[type="range"]:focus-visible { outline: none; }
+  .scrub input[type="range"]:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .scrub input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .times { display: flex; justify-content: space-between; gap: 8px; font: 500 13px/1.2 var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; padding-inline: 2px; }
+  .times .now { color: var(--ink); font-weight: 600; }
+  .still-note { margin-top: auto; padding-top: 6px; font-size: 13px; color: var(--muted); }
+
+  /* ---------------------------------------------------------------- the dock */
+  .dock-stage { height: auto; min-height: 132px; padding: 18px 12px; }
+  .dock { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; max-width: 100%; }
+  .capsule {
+    display: flex; gap: 2px; padding: 4px; border-radius: 999px;
+    background: var(--surface); border: 1px solid var(--line);
+  }
+  .capsule button {
+    border: 0; background: transparent; color: var(--muted); cursor: pointer;
+    min-height: 40px; padding: 0 12px; border-radius: 999px;
+    font: 600 13px/1 var(--font-text); -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  .capsule button[aria-selected="true"] { background: var(--ink); color: var(--page); }
+  .dock-coach {
+    border: 0; background: transparent; padding: 0; cursor: pointer; flex: none;
+    display: grid; justify-items: center; gap: 3px; border-radius: 14px;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+    -webkit-touch-callout: none; user-select: none; -webkit-user-select: none;
+  }
+  .dock-coach .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink); visibility: hidden; }
+  .dock-coach[aria-pressed="true"] .dot { visibility: visible; }
+  .dock-status { margin-top: auto; padding-top: 6px; font: 500 13px/1.3 var(--font-mono); color: var(--ink); }
+  @media (max-width: 359px) { .capsule button { padding: 0 9px; } .dock { gap: 6px; } }
+
+  /* ---------------------------------------------------------------- size check, today vs new */
+  .sizes { display: grid; gap: 10px; padding-top: 10px; scroll-margin-top: 16px; }
+  .sizes h2 { font-weight: 700; font-size: 22px; letter-spacing: -0.01em; }
+  .sizes > p { color: var(--muted); max-width: 70ch; font-size: 14px; }
+  .bands { display: grid; grid-template-columns: 1fr; gap: 12px; }
+  @media (min-width: 900px) { .bands { grid-template-columns: 1fr 1fr; } }
+  .band { border-radius: 16px; padding: 14px 16px 12px; display: grid; gap: 12px; min-width: 0; }
+  .band.light { background: var(--app-light); border: 1px solid var(--app-light-edge); color: var(--app-light-ink); }
+  .band.dark { background: var(--app-dark); border: 1px solid var(--app-dark-edge); color: var(--app-dark-ink); }
+  .band-title { font: 500 12px/1.2 var(--font-mono); }
+  .band-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px 6px; flex-wrap: wrap; }
+  @media (min-width: 560px) { .band-row { justify-content: flex-start; gap: 14px 22px; } }
+  .size-item { display: grid; justify-items: center; gap: 6px; }
+  .size-item span, .pose-item > span, .cmp-item span { font: 500 12px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+  .pose-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 14px 10px; }
+  .pose-item { display: grid; justify-items: center; gap: 6px; }
+  .pose-trio { display: flex; align-items: flex-end; gap: 6px; }
+  .cmp-row { display: grid; gap: 10px; padding-block: 4px 12px; }
+  .cmp-row + .cmp-row { padding-top: 14px; border-top: 1px solid currentColor; border-top-color: color-mix(in srgb, currentColor 18%, transparent); }
+  .cmp-items { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 14px 14px; }
+  .cmp-item { display: grid; justify-items: center; gap: 6px; }
+  .cmp-item.today span { font-weight: 700; }
+  .cmp-sep { align-self: stretch; width: 1px; background: currentColor; opacity: .25; }
+
+  /* ---------------------------------------------------------------- 5-second test */
+  .five { display: grid; gap: 10px; padding-top: 10px; scroll-margin-top: 16px; }
+  .five h2 { font-weight: 700; font-size: 22px; letter-spacing: -0.01em; }
+  .five > p { color: var(--muted); max-width: 70ch; font-size: 14px; }
+  .five-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card);
+    padding: 10px; display: grid; gap: 12px;
+  }
+  .five-stage { height: calc(var(--five-size, 112px) + 36px); }
+  .five-stage.is-hidden svg { visibility: hidden; }
+  .five-status { font: 600 15px/1.4 var(--font-text); padding-inline: 6px; min-height: 1.4em; }
+  .five-status .right { color: var(--right); }
+  .five-status .wrong { color: var(--wrong); }
+  .five-answers { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; padding-inline: 6px; }
+  .five-answers[hidden] { display: none; }
+  .five-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 6px 6px; }
+  .tally { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+  .tally th, .tally td { text-align: left; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .tally th { font: 600 12px/1.2 var(--font-text); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .tally td.num { font-family: var(--font-mono); }
+  .tally-wrap { overflow-x: auto; }
+
+  /* ---------------------------------------------------------------- play all bar */
+  .run-bar {
+    position: fixed; left: 16px; right: 16px; bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    z-index: 10; max-width: 560px; margin-inline: auto;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 6px 6px 6px 18px; border-radius: 999px;
+    background: var(--surface); border: 1px solid var(--line-strong); box-shadow: var(--bar-shadow);
+    font: 600 14px/1.3 var(--font-text); font-variant-numeric: tabular-nums;
+  }
+  .run-bar[hidden] { display: none; }
+  .run-bar .btn { flex: none; }
+
+  .foot { color: var(--muted); font-size: 13px; max-width: 72ch; padding-top: 6px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; }
+  }
+  :root.rm *, :root.rm *::before, :root.rm *::after { transition: none !important; }
+</style>
+<script>
+  // Theme before first paint. The viewer that hosts this page may already have set data-theme on
+  // the root (its own theme choice): keep that value so "System" can return to it. Then
+  // ?theme=light|dark (for testing), else the last choice on this device.
+  (function () {
+    var root = document.documentElement;
+    window.__hostTheme = root.getAttribute('data-theme');
+    var t = null;
+    try { t = new URLSearchParams(location.search).get('theme'); } catch (e) {}
+    if (!t) { try { t = localStorage.getItem('bravilo-coach-lab.theme'); } catch (e) {} }
+    if (t === 'light' || t === 'dark') root.setAttribute('data-theme', t);
+  })();
+</script>
+
+<main class="wrap">
+  <header class="top">
+    <h1>Bravilo Coach Lab</h1>
+    <p>Fold’s expressions and animations, for review before they move into the app (D142).</p>
+    <nav class="jump" aria-label="On this page">
+      <a href="#sizes-title">Size check</a>
+      <a href="#compare-title">Today vs new</a>
+      <a href="#five-title">5-second test</a>
+    </nav>
+  </header>
+
+  <p class="notice" id="no-gsap" hidden>The animation library didn’t load, so the coaches can’t move. Check the connection and reload the page.</p>
+  <p class="notice" id="rm-notice" hidden>Your device has Reduce Motion on, so each moment shows its end pose. Turn the switch off to see the motion.</p>
+
+  <section class="controls" aria-label="Controls">
+    <div class="ctl">
+      <span class="ctl-label" id="lbl-theme">Theme</span>
+      <div class="seg" role="radiogroup" aria-labelledby="lbl-theme">
+        <input type="radio" name="theme" id="theme-system" value="system"><label for="theme-system">System</label>
+        <input type="radio" name="theme" id="theme-light" value="light"><label for="theme-light">Light</label>
+        <input type="radio" name="theme" id="theme-dark" value="dark"><label for="theme-dark">Dark</label>
+      </div>
+    </div>
+    <div class="ctl">
+      <span class="ctl-label" id="lbl-size">Coach size</span>
+      <div class="seg" role="radiogroup" aria-labelledby="lbl-size">
+        <input type="radio" name="size" id="size-32" value="32"><label for="size-32">32</label>
+        <input type="radio" name="size" id="size-48" value="48"><label for="size-48">48</label>
+        <input type="radio" name="size" id="size-88" value="88"><label for="size-88">88</label>
+        <input type="radio" name="size" id="size-112" value="112"><label for="size-112">112</label>
+        <input type="radio" name="size" id="size-180" value="180"><label for="size-180">180</label>
+      </div>
+    </div>
+    <div class="ctl">
+      <span class="ctl-label" id="lbl-speed">Speed</span>
+      <div class="seg" role="radiogroup" aria-labelledby="lbl-speed">
+        <input type="radio" name="speed" id="speed-100" value="1"><label for="speed-100">1×</label>
+        <input type="radio" name="speed" id="speed-50" value="0.5"><label for="speed-50">0.5×</label>
+        <input type="radio" name="speed" id="speed-25" value="0.25"><label for="speed-25">0.25×</label>
+      </div>
+    </div>
+    <div class="ctl">
+      <span class="ctl-label" id="lbl-reduced">Reduced motion</span>
+      <label class="switch" for="reduced-motion">
+        <input type="checkbox" role="switch" id="reduced-motion" aria-labelledby="lbl-reduced">
+        <span class="track" aria-hidden="true"></span>
+        <span class="state" id="reduced-state">Off</span>
+      </label>
+    </div>
+    <button type="button" class="btn primary" id="play-all">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg><span>Play all</span>
+    </button>
+  </section>
+
+  <p class="hint">Each card opens on the pose its moment ends on; Thinking shows its full thought. Play runs the moment from the start; tap or drag along a scrubber to stop on any frame. Ticks on a scrubber mark where the eyes, mouth, brows or effects change. Below 44 px the coach draws its small form: bolder eyes, no brows, and of the effects only the thinking dots.</p>
+
+  <section class="grid" id="grid" aria-label="Moments"></section>
+
+  <section class="sizes" aria-labelledby="sizes-title">
+    <h2 id="sizes-title">Size check</h2>
+    <p>The rest pose at 24, 32, 48, 56 and 112 px, then every end pose at 24, 32 and 48 px, on the app’s light and dark backgrounds. 24 and 32 are tab, avatar and chat-reply sizes, 48 is a coach line, 56 is the dock button.</p>
+    <div class="bands">
+      <div class="band light"><span class="band-title">Light · #F6F5EF</span><div class="band-row" id="band-light"></div><div class="pose-grid" id="poses-light"></div></div>
+      <div class="band dark"><span class="band-title">Dark · #151918</span><div class="band-row" id="band-dark"></div><div class="pose-grid" id="poses-dark"></div></div>
+    </div>
+  </section>
+
+  <section class="sizes" aria-labelledby="compare-title">
+    <h2 id="compare-title">Today vs new</h2>
+    <p>Today’s Fold in the app (D75, drawn from <code>Fold.tsx</code>) next to the new coach’s rest, happy, thinking, concerned and sleepy poses, at 32, 48 and 112 px on the app’s light and dark backgrounds. Today’s Fold is 240 × 220; the new one is 240 × 240.</p>
+    <div class="bands">
+      <div class="band light"><span class="band-title">Light · #F6F5EF</span><div id="cmp-light"></div></div>
+      <div class="band dark"><span class="band-title">Dark · #151918</span><div id="cmp-dark"></div></div>
+    </div>
+  </section>
+
+  <section class="five" aria-labelledby="five-title">
+    <h2 id="five-title">5-second test</h2>
+    <p>D142’s check before anything changes in the app. The coach plays one moment at random and holds it for 5 seconds, with no label. Then pick the feeling you saw. Best with someone who hasn’t seen the lab. It uses the coach size and theme chosen above, and the tally stays on this device.</p>
+    <div class="five-card">
+      <div class="stage five-stage" id="five-stage"></div>
+      <p class="five-status" id="five-status" aria-live="polite">Ready when you are.</p>
+      <div class="five-answers" id="five-answers" role="group" aria-label="Which feeling did it show?" hidden></div>
+      <div class="five-actions">
+        <button type="button" class="btn primary" id="five-start">Start a round</button>
+        <button type="button" class="btn" id="five-reset">Clear the tally</button>
+      </div>
+    </div>
+    <div class="tally-wrap"><table class="tally" id="five-tally" aria-label="5-second test tally"></table></div>
+  </section>
+
+  <p class="foot">The motion here is data (keys, eases and expression swaps) played with GSAP 3.13. The app will replay the same data with Reanimated, so what you approve here is what ships.</p>
+</main>
+
+<div class="run-bar" id="run-bar" hidden>
+  <span id="run-text" aria-live="polite">Playing</span>
+  <button type="button" class="btn" id="run-stop">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5h11v11h-11z"/></svg><span>Stop</span>
+  </button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
+<!-- INLINE -->
+<script>
+(function () {
+  'use strict';
+  var BC = window.BraviloCoach, BM = window.BraviloMotion, BP = window.BraviloPlayer;
+  var html = document.documentElement;
+  var q = new URLSearchParams(location.search);
+  var hasGsap = typeof window.gsap !== 'undefined';
+  var KEY = 'bravilo-coach-lab.';
+  var NS = 'http://www.w3.org/2000/svg';
+
+  function read(k) { try { return localStorage.getItem(KEY + k); } catch (e) { return null; } }
+  function write(k, v) { try { localStorage.setItem(KEY + k, String(v)); } catch (e) { /* private mode */ } }
+  function oneOf(v, list) {
+    for (var i = 0; i < list.length; i++) if (v != null && String(list[i]) === String(v)) return list[i];
+    return null;
+  }
+  function h(tag, cls, parent, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+
+  var THEMES = ['system', 'light', 'dark'], SIZES = [32, 48, 88, 112, 180], SPEEDS = [1, 0.5, 0.25];
+  var osReduced = !!(BP && BP.reducedMotion);
+  var S = {
+    theme: oneOf(q.get('theme'), THEMES) || oneOf(read('theme'), THEMES) || 'system',
+    size: oneOf(q.get('size'), SIZES) || oneOf(read('size'), SIZES) || 112,
+    speed: oneOf(q.get('speed'), SPEEDS) || oneOf(read('speed'), SPEEDS) || 1,
+    // The switch follows the device's setting on every visit; ?reduced=1|0 for testing.
+    reduced: q.has('reduced') ? q.get('reduced') === '1' : osReduced
+  };
+
+  var ICON_PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>';
+  var ICON_STOP = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5h11v11h-11z"/></svg>';
+
+  // The moments of SPEC §4, in its order. `plays` and `feel` are the spec's words.
+  var MOMENTS = [
+    { key: 'rest', name: 'Rest', still: 'rest',
+      plays: 'Today, coach lines, everywhere by default',
+      feel: 'Calm, present. A still pose, not an animation.' },
+    { key: 'greeting', name: 'Greeting',
+      plays: 'welcome screen, empty chat, first open',
+      feel: 'A warm hello: one hand waves twice, a small bounce, happy eyes.' },
+    { key: 'nod', name: 'Nod',
+      plays: 'something saved, plan updated, coach voice picked',
+      feel: '“Got it”: a small dip of the body, a quick happy blink.' },
+    { key: 'thinking', name: 'Thinking', loop: true,
+      plays: 'while the coach replies or a plan builds (the only loop)',
+      feel: 'Focused: eyes up, a hand near the chin, dots pulse in sequence (bigger dots below 44 px). Stopped, it returns to rest.' },
+    { key: 'happy', name: 'Happy',
+      plays: 'finish screen',
+      feel: 'Pleased with you: a small hop with squash and stretch, happy eyes, a small smile, hands up briefly.' },
+    { key: 'proud', name: 'Proud',
+      plays: 'new best, milestones at workouts 3, 6 and 12, first time beating last time',
+      feel: 'The big moment: anticipation dip, stretch up, one hand punches high, open smile, a tiny spark.' },
+    { key: 'encourage', name: 'Encourage',
+      plays: 'before a workout, first workout, “twenty minutes counts” after a gap',
+      feel: '“You’ve got this”: a lean in, both mittens forward as fists with a nod, warm eyes.' },
+    { key: 'sleepy', name: 'Sleepy',
+      plays: 'rest-day card',
+      feel: 'Content, rest is good: eyes slowly close, a gentle sink, one slow breath, small z’s drift up and fade in.' },
+    { key: 'welcomeBack', name: 'Welcome back',
+      plays: 'coming back after a break',
+      feel: 'Relief and warmth: eyes widen then go happy, both hands open low and wide, “there you are”.' },
+    { key: 'concerned', name: 'Concerned',
+      plays: '“Something feels off”, pain follow-up',
+      feel: 'Attentive and calm, never sad: a slight head tilt, kind worried brows, soft eyes, a hand lifted gently, no bounce.' },
+    { key: 'surprised', name: 'Surprised',
+      plays: 'an unexpected new best',
+      feel: 'A quick pop up, wide eyes, an “o” mouth, raised brows, hands to the cheeks, then settling to happy.' },
+    { key: 'lookAt', name: 'Look at',
+      plays: 'onboarding and plan reveal: the eyes guide to a button',
+      feel: 'The eyes, and a slight lean of the body, glance toward a direction and hold.',
+      choices: [['lookAtLeft', 'Left'], ['lookAtRight', 'Right'], ['lookAtDown', 'Down']] },
+    { key: 'press', name: 'Press',
+      plays: 'the coach button in the tab dock is pressed',
+      feel: 'A squash to about 0.94 and a spring back (the D76 press). With the chat open, the raised hand stays up.',
+      choices: [['press', 'Chat closed'], ['pressOpen', 'Chat open']] },
+    { key: 'chatOpen', name: 'Chat open',
+      plays: 'the chat is open (the coach button’s open state)',
+      feel: 'One hand raised and held, a friendly smile.' }
+  ];
+
+  // Play all: every animation in turn (thinking runs two loops, then stops).
+  var PLAY_ALL = [['greeting'], ['nod'], ['thinking'], ['happy'], ['proud'], ['encourage'], ['sleepy'],
+    ['welcomeBack'], ['concerned'], ['surprised'], ['lookAt', 'lookAtLeft'], ['lookAt', 'lookAtRight'],
+    ['lookAt', 'lookAtDown'], ['press', 'press'], ['chatOpen']];
+
+  // Every end pose, for the size check.
+  var POSE_LIST = [['rest', 'rest'], ['happy', 'happy'], ['proud', 'proud'], ['encourage', 'encourage'],
+    ['thinking', 'thinking'], ['sleepy', 'sleepy'], ['concerned', 'concerned'], ['lookLeft', 'look left'],
+    ['lookRight', 'look right'], ['lookDown', 'look down'], ['chatOpen', 'chat open']];
+
+  var grid = document.getElementById('grid');
+  var cards = {}, order = [], allCoaches = [], dock = null, run = null, five = null;
+
+  if (!hasGsap || !BC || !BM || !BP) {
+    document.getElementById('no-gsap').hidden = false;
+  }
+
+  // ---------------------------------------------------------------- theme, size, speed, reduced
+
+  // The theme follows, in order: the choice made here (Light or Dark), else the theme the hosting
+  // viewer set on the root (data-theme, kept in hostTheme), else the device's setting. The coaches
+  // always draw the theme the page shows, and follow the host when it changes the root at runtime.
+  var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  function lightOrDark(v) { return v === 'light' || v === 'dark' ? v : null; }
+  var hostTheme = lightOrDark(window.__hostTheme);
+  var themeObs = null;
+  function coachTheme() {
+    if (S.theme !== 'system') return S.theme;
+    return lightOrDark(html.getAttribute('data-theme')) || (mq && mq.matches ? 'dark' : 'light');
+  }
+  function recolor() {
+    var t = coachTheme();
+    allCoaches.forEach(function (c) { c.setTheme(t); });
+  }
+  function applyTheme() {
+    var want = S.theme === 'system' ? hostTheme : S.theme;
+    if (want) html.setAttribute('data-theme', want); else html.removeAttribute('data-theme');
+    if (themeObs) themeObs.takeRecords(); // our own change, not the host's
+    recolor();
+  }
+  if (window.MutationObserver) {
+    themeObs = new MutationObserver(function () {
+      // The host changed the root's theme: follow it, and show that by switching to System.
+      hostTheme = lightOrDark(html.getAttribute('data-theme'));
+      if (S.theme !== 'system') {
+        S.theme = 'system';
+        write('theme', 'system');
+        var sys = document.getElementById('theme-system');
+        if (sys) sys.checked = true;
+      }
+      recolor();
+    });
+    themeObs.observe(html, { attributes: true, attributeFilter: ['data-theme'] });
+  }
+  if (mq) {
+    var onScheme = function () { if (S.theme === 'system') recolor(); };
+    if (mq.addEventListener) mq.addEventListener('change', onScheme); else if (mq.addListener) mq.addListener(onScheme);
+  }
+  function applySize() {
+    grid.style.setProperty('--coach-size', S.size + 'px');
+    order.forEach(function (card) { card.coach.setSize(S.size); });
+  }
+  function applySpeed() { if (hasGsap) gsap.globalTimeline.timeScale(S.speed); }
+  function applyReduced() {
+    if (BP) BP.reducedMotion = S.reduced;
+    html.classList.toggle('rm', S.reduced);
+    document.getElementById('reduced-state').textContent = S.reduced ? 'On' : 'Off';
+    // Say why nothing moves when it was the device's setting that turned the switch on.
+    document.getElementById('rm-notice').hidden = !(S.reduced && osReduced);
+  }
+
+  // ---------------------------------------------------------------- helpers
+
+  function specOf(id) { return BM && BM.ANIMS[id] ? BM.ANIMS[id] : null; }
+  function poseLabel(p) { return typeof p === 'string' ? p : (p && p.name) || 'custom'; }
+  function atPose(coach, pose) {
+    var a = BP.state(coach), b = BP.poseState(pose);
+    for (var i = 0; i < BP.PARTS.length; i++) {
+      for (var j = 0; j < BP.PROPS.length; j++) {
+        var p = BP.PARTS[i], k = BP.PROPS[j];
+        if (Math.abs(a.parts[p][k] - b.parts[p][k]) > 1e-3) return false;
+      }
+    }
+    for (var g = 0; g < BP.GROUPS.length; g++) if (a.variants[BP.GROUPS[g]] !== b.variants[BP.GROUPS[g]]) return false;
+    return true;
+  }
+  // A real-time wait that a card can cancel (gaps between steps are not slowed by the speed).
+  function later(owner, fn, ms) {
+    var id = setTimeout(function () {
+      owner.timers = owner.timers.filter(function (x) { return x !== id; });
+      fn();
+    }, ms);
+    owner.timers.push(id);
+  }
+  function clearTimers(owner) { owner.timers.forEach(clearTimeout); owner.timers = []; }
+
+  // ---------------------------------------------------------------- one card
+
+  function animId(card) { return card.m.choices ? card.choice : card.m.key; }
+
+  function setButton(card, mode) { // 'play' | 'replay' | 'start' | 'stop'
+    if (!card.btn) return;
+    var label = { play: 'Play', replay: 'Replay', start: 'Start', stop: 'Stop' }[mode];
+    card.btn.innerHTML = (mode === 'stop' ? ICON_STOP : ICON_PLAY) + '<span>' + label + '</span>';
+    card.btn.setAttribute('aria-label', label + ' ' + card.m.name.toLowerCase());
+  }
+
+  function setScrub(card, tMs, text) {
+    if (!card.input) return;
+    var D = BP.durationOf(animId(card)) || 1, p = Math.max(0, Math.min(1, tMs / D));
+    card.input.value = String(Math.round(p * 1000));
+    card.input.style.setProperty('--p', (p * 100).toFixed(2) + '%');
+    card.input.setAttribute('aria-valuetext', Math.round(tMs) + ' of ' + D + ' milliseconds');
+    card.now.textContent = text || (Math.round(tMs) + ' ms');
+  }
+
+  function describe(card) {
+    var id = animId(card), spec = specOf(id);
+    if (!spec) return;
+    var D = BP.durationOf(id);
+    card.meta.textContent = spec.loop
+      ? id + ' · ' + D + ' ms loop · stops on ' + poseLabel(spec.endPose)
+      : id + ' · ' + D + ' ms · ends on ' + poseLabel(spec.endPose);
+    card.total.textContent = D + ' ms';
+    // Ticks where an expression changes. Swaps a few ms apart would draw a doubled mark, so a
+    // tick within 40 ms (or 3% of the length) of the last one drawn is skipped.
+    card.ticks.innerHTML = '';
+    var times = (spec.swaps || []).map(function (s) { return s[0]; }).sort(function (a, b) { return a - b; });
+    var last = null, gap = Math.max(40, D * 0.03);
+    times.forEach(function (t) {
+      if (last != null && t - last < gap) return;
+      last = t;
+      var tick = h('span', 'tick', card.ticks);
+      tick.style.left = (100 * t / D).toFixed(2) + '%';
+    });
+  }
+
+  // The card's still: a one-shot shows its last frame (its end pose); thinking shows the full thought.
+  function showStill(card) {
+    if (card.m.still) { BP.apply(card.coach, card.m.still); return; }
+    var id = animId(card), spec = specOf(id);
+    if (!spec) return;
+    var D = BP.durationOf(id);
+    var t = spec.loop ? Math.round(D * 0.6) : D;
+    BP.seek(card.coach, id, t / D);
+    setScrub(card, t);
+  }
+
+  function killFollow(card) { if (card.follow) { card.follow.kill(); card.follow = null; } }
+  // The scrubber follows playback on GSAP's clock, so it slows with the speed control.
+  function follow(card, settleMs, D, loop) {
+    killFollow(card);
+    var o = { t: 0 };
+    card.follow = gsap.to(o, {
+      t: D, duration: D / 1000, delay: settleMs / 1000, ease: 'none', repeat: loop ? -1 : 0,
+      onUpdate: function () { setScrub(card, o.t); }
+    });
+  }
+
+  // Stop whatever this card is doing, leaving the coach where it is.
+  function cancel(card) {
+    clearTimers(card);
+    killFollow(card);
+    card.el.classList.remove('is-playing');
+  }
+
+  // One coach animates per screen (D75): before one starts, every other one stops on its end pose.
+  function quietOthers(except) {
+    if (!hasGsap) return;
+    order.forEach(function (card) {
+      if (card === except) return;
+      var busy = card.timers.length || card.follow || card.looping || BP.isPlaying(card.coach);
+      if (!busy) return;
+      cancel(card);
+      if (card.looping) { card.looping = false; setButton(card, 'start'); BP.stop(card.coach, { immediate: true }); setScrub(card, 0, 'stopped on rest'); }
+      else { BP.stop(card.coach, { immediate: true }); setScrub(card, BP.durationOf(animId(card))); }
+    });
+    if (dock && dock !== except) dockQuiet();
+    if (five && five !== except) fiveQuiet();
+  }
+
+  function playCard(card, done) {
+    var id = animId(card), spec = specOf(id);
+    if (!spec || !hasGsap) return;
+    cancel(card);
+    quietOthers(card);
+    var D = BP.durationOf(id), start = spec.startPose || 'rest';
+    card.el.classList.add('is-playing');
+    setButton(card, 'replay');
+    function go() {
+      var r = BP.play(card.coach, id, {
+        onDone: function () {
+          killFollow(card);
+          card.el.classList.remove('is-playing');
+          setScrub(card, D);
+          if (done) done();
+        }
+      });
+      if (r && !BP.reducedMotion) follow(card, r.settleMs, D, false);
+    }
+    // Start from the start pose: a quick reset, a beat, then the moment. With reduced motion the
+    // beat shows the start pose and the coach then cuts to the end pose, as the app will.
+    if (!atPose(card.coach, start)) {
+      BP.apply(card.coach, start);
+      setScrub(card, 0);
+      later(card, go, S.reduced ? 500 : 260);
+    } else {
+      setScrub(card, 0);
+      go();
+    }
+  }
+
+  function startLoop(card) {
+    var id = animId(card), D = BP.durationOf(id);
+    if (!hasGsap) return;
+    cancel(card);
+    quietOthers(card);
+    card.looping = true;
+    card.el.classList.add('is-playing');
+    setButton(card, 'stop');
+    var r = BP.play(card.coach, id);
+    if (r && !BP.reducedMotion) follow(card, r.settleMs, D, true);
+    else setScrub(card, 0, 'held (reduced motion)');
+  }
+  function stopLoop(card, done) {
+    killFollow(card);
+    clearTimers(card);
+    card.looping = false;
+    setButton(card, 'start');
+    function end() { card.el.classList.remove('is-playing'); setScrub(card, 0, 'stopped on rest'); if (done) done(); }
+    if (!BP.isPlaying(card.coach)) { BP.apply(card.coach, 'rest'); end(); return; }
+    BP.stop(card.coach, { onDone: end });
+  }
+
+  function choose(card, id) {
+    card.choice = id;
+    var r = document.getElementById(card.m.key + '-' + id);
+    if (r) r.checked = true;
+    cancel(card);
+    describe(card);
+    if (hasGsap) showStill(card);
+    setButton(card, 'play');
+  }
+
+  function buildCard(m) {
+    var card = { m: m, choice: m.choices ? m.choices[0][0] : null, timers: [], follow: null, looping: false };
+    var el = card.el = h('article', 'card', grid);
+    el.id = 'card-' + m.key;
+    el.setAttribute('aria-labelledby', 'title-' + m.key);
+    var stage = h('div', 'stage', el);
+    card.coach = BC.create(stage, { theme: coachTheme(), size: S.size });
+    card.coach.svg.setAttribute('aria-label', 'Fold, ' + m.name.toLowerCase());
+    allCoaches.push(card.coach);
+
+    var body = h('div', 'card-body', el);
+    var head = h('div', 'card-head', body);
+    h('h2', '', head, m.name).id = 'title-' + m.key;
+    card.meta = h('p', 'meta', head, m.still ? 'rest · still pose' : '');
+    var plays = h('p', 'plays', body);
+    h('span', 'k', plays, 'Plays');
+    plays.appendChild(document.createTextNode(m.plays));
+    h('p', 'feel', body, m.feel);
+
+    var missing = !m.still && !(m.choices ? m.choices.every(function (c) { return specOf(c[0]); }) : specOf(m.key));
+    if (missing) {
+      h('p', 'still-note', body, 'Not built yet.');
+      order.push(card); cards[m.key] = card;
+      return card;
+    }
+
+    if (m.choices) {
+      var seg = h('div', 'seg', body);
+      seg.setAttribute('role', 'radiogroup');
+      seg.setAttribute('aria-label', m.name + ': which one');
+      m.choices.forEach(function (c, i) {
+        var input = h('input', '', seg);
+        input.type = 'radio'; input.name = 'choice-' + m.key; input.id = m.key + '-' + c[0]; input.value = c[0];
+        input.checked = i === 0;
+        var label = h('label', '', seg, c[1]);
+        label.htmlFor = input.id;
+        input.addEventListener('change', function () { if (input.checked) { stopRun(); choose(card, c[0]); } });
+      });
+    }
+
+    if (m.still) {
+      h('p', 'still-note', body, 'Most moments start from this pose.');
+    } else {
+      var tr = h('div', 'transport', body);
+      var btn = card.btn = h('button', 'btn', tr);
+      btn.type = 'button';
+      btn.id = 'play-' + m.key;
+      var sc = h('div', 'scrub', tr);
+      var rail = h('div', 'rail', sc);
+      h('div', 'base', rail);
+      card.ticks = h('div', 'ticks', rail);
+      card.ticks.setAttribute('aria-hidden', 'true');
+      var input2 = card.input = h('input', '', rail);
+      input2.type = 'range'; input2.id = 'scrub-' + m.key; input2.min = '0'; input2.max = '1000'; input2.step = '1';
+      input2.setAttribute('aria-label', 'Scrub through ' + m.name.toLowerCase());
+      var times = h('div', 'times', sc);
+      card.now = h('span', 'now', times, '0 ms');
+      card.total = h('span', '', times, '');
+      if (!hasGsap) { btn.disabled = true; input2.disabled = true; }
+
+      setButton(card, m.loop ? 'start' : 'play');
+      btn.addEventListener('click', function () {
+        stopRun();
+        if (m.loop) { if (card.looping) stopLoop(card); else startLoop(card); }
+        else playCard(card);
+      });
+      input2.addEventListener('input', function () {
+        if (!hasGsap) return;
+        stopRun();
+        var id = animId(card), D = BP.durationOf(id), p = (+input2.value) / 1000;
+        cancel(card);
+        quietOthers(card);
+        if (card.looping) { card.looping = false; setButton(card, 'start'); }
+        BP.seek(card.coach, id, p);
+        setScrub(card, p * D);
+      });
+      // A tap or a drag anywhere on the rail seeks (iOS only moves a range input by its thumb).
+      // It reuses the input handler above. The thumb's centre runs from half its width in from
+      // each end, the same inset as the ticks.
+      var seekAt = function (e) {
+        var r = rail.getBoundingClientRect(), inset = 13;
+        var p = Math.max(0, Math.min(1, (e.clientX - r.left - inset) / Math.max(1, r.width - 2 * inset)));
+        input2.value = String(Math.round(p * 1000));
+        input2.dispatchEvent(new Event('input', { bubbles: true }));
+      };
+      rail.addEventListener('pointerdown', function (e) {
+        if (!hasGsap || (e.pointerType === 'mouse' && e.button !== 0)) return;
+        try { rail.setPointerCapture(e.pointerId); } catch (x) { /* older browsers */ }
+        seekAt(e);
+      });
+      rail.addEventListener('pointermove', function (e) {
+        if (rail.hasPointerCapture && rail.hasPointerCapture(e.pointerId)) seekAt(e);
+      });
+      describe(card);
+    }
+    order.push(card);
+    cards[m.key] = card;
+    return card;
+  }
+
+  // ---------------------------------------------------------------- the dock button
+
+  // The D76 press, as in the app: touch-down plays press 0-90 ms and holds there while the finger
+  // is down; release plays the rest. On an opening tap chatOpen takes over at press t = 330 ms
+  // (no settle). A cancelled touch plays the press out on the pose it started from.
+  var PRESS_MS = 420, PRESS_IN = 90 / 420, HANDOFF = 330 / 420;
+
+  function buildDock() {
+    var el = h('article', 'card wide-2', grid);
+    el.id = 'card-dock';
+    el.setAttribute('aria-labelledby', 'title-dock');
+    var stage = h('div', 'stage dock-stage', el);
+    var bar = h('div', 'dock', stage);
+    var capsule = h('div', 'capsule', bar);
+    capsule.setAttribute('role', 'tablist');
+    capsule.setAttribute('aria-label', 'Tabs');
+    var tabs = [['today', 'Today'], ['history', 'History'], ['plan', 'Plan']].map(function (t) {
+      var b = h('button', '', capsule, t[1]);
+      b.type = 'button'; b.id = 'dock-' + t[0]; b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', t[0] === 'today' ? 'true' : 'false');
+      return b;
+    });
+    var coachBtn = h('button', 'dock-coach', bar);
+    coachBtn.type = 'button'; coachBtn.id = 'dock-coach';
+    coachBtn.setAttribute('aria-pressed', 'false');
+    coachBtn.setAttribute('aria-label', 'Coach chat');
+    var slot = h('span', '', coachBtn);
+    h('span', 'dot', coachBtn).setAttribute('aria-hidden', 'true');
+
+    var body = h('div', 'card-body', el);
+    var head = h('div', 'card-head', body);
+    h('h2', '', head, 'Coach button').id = 'title-dock';
+    h('p', 'meta', head, 'press → chatOpen · 56 px');
+    var plays = h('p', 'plays', body);
+    h('span', 'k', plays, 'Try it');
+    plays.appendChild(document.createTextNode('the tab dock, as in the app. Touch the coach and hold: it presses in under your finger and springs back when you let go, and the hand goes up as it springs back. Tap it again while the chat is open, then tap a tab to close the chat.'));
+    var status = h('p', 'dock-status', body, 'Chat closed');
+    status.id = 'dock-status';
+    status.setAttribute('aria-live', 'polite');
+
+    var coach = BC.create(slot, { theme: coachTheme(), size: 56 });
+    coach.svg.setAttribute('aria-hidden', 'true');
+    allCoaches.push(coach);
+    dock = { el: el, coach: coach, open: false, timers: [], call: null, tw: null, held: null, btn: coachBtn, tabs: tabs, status: status };
+    if (hasGsap) BP.apply(coach, 'rest');
+
+    function setOpen(open, tabIndex) {
+      dock.open = open;
+      coachBtn.setAttribute('aria-pressed', open ? 'true' : 'false');
+      tabs.forEach(function (b, i) { b.setAttribute('aria-selected', !open && i === tabIndex ? 'true' : 'false'); });
+      status.textContent = open ? 'Chat open' : 'Chat closed · ' + tabs[tabIndex].textContent;
+    }
+
+    // Touch-down: press-in, 0-90 ms of press (or pressOpen), then hold.
+    function pressIn() {
+      if (!hasGsap) return;
+      stopRun();
+      quietOthers(dock);
+      dockStop();
+      var id = dock.open ? 'pressOpen' : 'press', o = { p: 0 };
+      dock.held = { id: id, o: o, tw: null };
+      if (BP.reducedMotion) return;
+      BP.seek(coach, id, 0);
+      dock.held.tw = gsap.to(o, { p: PRESS_IN, duration: PRESS_IN * PRESS_MS / 1000, ease: 'none',
+        onUpdate: function () { BP.seek(coach, id, o.p); } });
+    }
+    // Release: the rest of the press from wherever press-in got to. opening: hand over to
+    // chatOpen at press t = 330 ms.
+    function pressOut(opening) {
+      var held = dock.held;
+      if (!held) return;
+      dock.held = null;
+      if (held.tw) held.tw.kill();
+      if (opening) setOpen(true, 0);
+      if (BP.reducedMotion) { BP.apply(coach, dock.open ? 'chatOpen' : 'rest'); return; }
+      var o = held.o, end = opening ? HANDOFF : 1;
+      dock.tw = gsap.to(o, { p: end, duration: Math.max(0, end - o.p) * PRESS_MS / 1000, ease: 'none',
+        onUpdate: function () { BP.seek(coach, held.id, o.p); },
+        onComplete: function () {
+          dock.tw = null;
+          if (opening) BP.play(coach, 'chatOpen', { settle: false });
+          else BP.apply(coach, specOf(held.id).endPose);
+        } });
+    }
+    coachBtn.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      pressIn();
+    });
+    // A touch that turns into a scroll, or a mouse dragged off the button, is a cancelled touch.
+    coachBtn.addEventListener('pointercancel', function () { pressOut(false); });
+    coachBtn.addEventListener('pointerleave', function (e) { if (e.buttons & 1) pressOut(false); });
+    coachBtn.addEventListener('click', function () {
+      if (!hasGsap) return;
+      // A click without a touch-down first (the keyboard) presses in and releases at once.
+      if (!dock.held) pressIn();
+      pressOut(!dock.open);
+    });
+    tabs.forEach(function (b, i) {
+      b.addEventListener('click', function () {
+        if (!hasGsap) return;
+        stopRun();
+        if (dock.open) { quietOthers(dock); dockStop(); BP.to(coach, 'rest'); }
+        setOpen(false, i);
+      });
+    });
+  }
+  function dockStop() {
+    if (!dock) return;
+    if (dock.call) { dock.call.kill(); dock.call = null; }
+    if (dock.tw) { dock.tw.kill(); dock.tw = null; }
+    if (dock.held && dock.held.tw) dock.held.tw.kill();
+    dock.held = null;
+  }
+  function dockQuiet() {
+    if (!dock || !hasGsap) return;
+    dockStop();
+    BP.apply(dock.coach, dock.open ? 'chatOpen' : 'rest');
+  }
+
+  // ---------------------------------------------------------------- play all
+
+  var playAllBtn = document.getElementById('play-all');
+  var runBar = document.getElementById('run-bar'), runText = document.getElementById('run-text');
+  function setPlayAll(running) {
+    playAllBtn.innerHTML = (running ? ICON_STOP : ICON_PLAY) + '<span>' + (running ? 'Stop' : 'Play all') + '</span>';
+    runBar.hidden = !running;
+  }
+  function stepName(item) {
+    var card = cards[item[0]], name = card ? card.m.name : item[0];
+    if (item[1] && card && card.m.choices) {
+      card.m.choices.forEach(function (c) { if (c[0] === item[1]) name += ' · ' + c[1]; });
+    }
+    return name;
+  }
+  function stopRun() {
+    if (!run) return;
+    var r = run;
+    run = null;
+    r.timers.forEach(clearTimeout);
+    if (r.call) r.call.kill();
+    if (r.unlisten) r.unlisten();
+    // A running thinking loop is left to the caller: its own Stop button, or quietOthers().
+    if (r.card) r.card.el.classList.remove('is-current');
+    setPlayAll(false);
+  }
+  function step(i, r) {
+    if (run !== r) return;
+    if (r.card) r.card.el.classList.remove('is-current');
+    r.card = null;
+    if (i >= PLAY_ALL.length) { stopRun(); return; }
+    var item = PLAY_ALL[i], card = cards[item[0]];
+    if (!card || !card.btn) { step(i + 1, r); return; }
+    if (item[1]) choose(card, item[1]);
+    r.card = card;
+    card.el.classList.add('is-current');
+    runText.textContent = 'Playing ' + (i + 1) + ' of ' + PLAY_ALL.length + ' · ' + stepName(item);
+    // Follow the run down the page until the reviewer touches or scrolls it.
+    if (!r.noScroll) {
+      try { card.el.scrollIntoView({ block: 'center', behavior: S.reduced ? 'auto' : 'smooth' }); } catch (e) { card.el.scrollIntoView(); }
+    }
+    function next() {
+      if (run !== r) return;
+      r.timers.push(setTimeout(function () { step(i + 1, r); }, S.reduced ? 900 : 700));
+    }
+    r.timers.push(setTimeout(function () {
+      if (run !== r) return;
+      if (card.m.loop) {
+        startLoop(card);
+        // Two loops at the chosen speed (a delayed call runs on GSAP's clock), then stop.
+        r.call = gsap.delayedCall(S.reduced ? 1.2 : 2 * BP.durationOf(animId(card)) / 1000, function () {
+          r.call = null;
+          stopLoop(card, next);
+        });
+      } else {
+        playCard(card, next);
+      }
+    }, S.reduced ? 150 : 450));
+  }
+  function startRun() {
+    if (!hasGsap) return;
+    quietOthers(null);
+    var r = run = { timers: [], call: null, card: null, noScroll: false, unlisten: null };
+    function hands() { r.noScroll = true; }
+    var opts = { passive: true };
+    window.addEventListener('touchstart', hands, opts);
+    window.addEventListener('wheel', hands, opts);
+    r.unlisten = function () {
+      window.removeEventListener('touchstart', hands, opts);
+      window.removeEventListener('wheel', hands, opts);
+    };
+    setPlayAll(true);
+    step(0, r);
+  }
+  playAllBtn.addEventListener('click', function () {
+    if (run) { stopRun(); quietOthers(null); return; }
+    startRun();
+  });
+  document.getElementById('run-stop').addEventListener('click', function () { stopRun(); quietOthers(null); });
+  if (!hasGsap) playAllBtn.disabled = true;
+
+  // ---------------------------------------------------------------- size check
+
+  function poseCoach(parent, pose, theme, px, label) {
+    var c = BC.create(parent, { theme: theme, size: px });
+    c.svg.setAttribute('aria-label', 'Fold, ' + label + ', at ' + px + ' px on the ' + theme + ' background');
+    if (hasGsap) BP.apply(c, pose);
+    return c;
+  }
+  function buildSizes() {
+    [['light', 'band-light', 'poses-light'], ['dark', 'band-dark', 'poses-dark']].forEach(function (b) {
+      var row = document.getElementById(b[1]);
+      [24, 32, 48, 56, 112].forEach(function (px) {
+        var item = h('div', 'size-item', row);
+        poseCoach(item, 'rest', b[0], px, 'rest');
+        h('span', '', item, px + ' px');
+      });
+      var poses = document.getElementById(b[2]);
+      POSE_LIST.forEach(function (p) {
+        var item = h('div', 'pose-item', poses), trio = h('div', 'pose-trio', item);
+        [24, 32, 48].forEach(function (px) { poseCoach(trio, p[0], b[0], px, p[1]); });
+        h('span', '', item, p[1]);
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------- today vs new
+
+  // Today's Fold (D75), drawn as in the app's FoldStatic: the path data and colours are copied from
+  // apps/mobile/src/ui/Fold.tsx and ui/theme.ts (read only; the lab never changes the app).
+  var TODAY = {
+    shapes: {
+      shell: 'M39 90 Q38 64 60 52 L90 36 Q116 22 142 36 L178 55 Q198 66 197 88 L191 172 Q190 190 173 197 L66 201 Q43 199 40 178Z',
+      face: 'M66 88 Q66 76 76 70 L102 56 Q116 49 130 56 L162 73 Q172 79 172 90 L166 147 L120 172 L70 144Z',
+      crease: 'M40 90 Q52 110 89 122 L87 132 Q56 118 41 106Z',
+      arm: 'M139 167 Q143 147 156 126 L186 74 Q192 65 198 75 L208 108 Q212 120 205 133 L177 180Z',
+      armShade: 'M139 167 L177 180 L165 188 L134 176Z',
+      fold: 'M39 101 Q75 127 111 140 L183 171 Q198 179 195 190 Q193 200 179 200 L66 200 Q42 200 41 179Z'
+    },
+    colors: {
+      light: { shell: '#1E2220', face: '#F6F5EF', eyes: '#1E2220', crease: '#94AF7C', arm: '#C5ED62', armShade: '#94AF7C', fold: '#151918' },
+      dark: { shell: '#E1E8CC', face: '#262A28', eyes: '#F1F4EA', crease: '#657D59', arm: '#C5ED62', armShade: '#657D59', fold: '#C9D3BF' }
+    }
+  };
+  function svgEl(tag, attrs, parent) {
+    var e = document.createElementNS(NS, tag);
+    for (var a in attrs) if (Object.prototype.hasOwnProperty.call(attrs, a)) e.setAttribute(a, attrs[a]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function todayFold(parent, theme, px) {
+    var c = TODAY.colors[theme], s = TODAY.shapes, small = px < 44;
+    var svg = svgEl('svg', { viewBox: '0 0 240 220', width: px, height: Math.round(px * 220 / 240 * 10) / 10, role: 'img',
+      'aria-label': 'Today’s Fold at ' + px + ' px on the ' + theme + ' background' }, parent);
+    svg.style.display = 'block';
+    svgEl('path', { d: s.shell, fill: c.shell }, svg);
+    svgEl('path', { d: s.face, fill: c.face }, svg);
+    var e = small ? { y: 96, w: 24, h: 14, xs: [84, 124] } : { y: 99, w: 18, h: 9, xs: [88, 125] };
+    e.xs.forEach(function (x) { svgEl('rect', { x: x, y: e.y, width: e.w, height: e.h, rx: e.h / 2, fill: c.eyes }, svg); });
+    if (!small) svgEl('path', { d: s.crease, fill: c.crease }, svg);
+    svgEl('path', { d: s.arm, fill: c.arm }, svg);
+    svgEl('path', { d: s.armShade, fill: c.armShade }, svg);
+    svgEl('path', { d: s.fold, fill: c.fold }, svg);
+    return svg;
+  }
+  function buildCompare() {
+    var NEW = [['rest', 'rest'], ['happy', 'happy'], ['thinking', 'thinking'], ['concerned', 'concerned'], ['sleepy', 'sleepy']];
+    [['light', 'cmp-light'], ['dark', 'cmp-dark']].forEach(function (b) {
+      var host = document.getElementById(b[1]);
+      [32, 48, 112].forEach(function (px) {
+        var row = h('div', 'cmp-row', host);
+        h('span', 'band-title', row, px + ' px · today, then new');
+        var items = h('div', 'cmp-items', row);
+        var t = h('div', 'cmp-item today', items);
+        todayFold(t, b[0], px);
+        h('span', '', t, 'today');
+        h('div', 'cmp-sep', items).setAttribute('aria-hidden', 'true');
+        NEW.forEach(function (p) {
+          var it = h('div', 'cmp-item', items);
+          poseCoach(it, p[0], b[0], px, p[1]);
+          h('span', '', it, p[1]);
+        });
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------- 5-second test
+
+  // D142's feelings, in its order. Each round plays one at random (rest is the still pose) and
+  // holds it for 5 seconds; then the reviewer picks which feeling it showed.
+  var FEELINGS = [['rest', 'Rest'], ['greeting', 'Greeting'], ['nod', 'Nod'], ['thinking', 'Thinking'],
+    ['happy', 'Happy'], ['proud', 'Proud'], ['encourage', 'Encourage'], ['sleepy', 'Sleepy'],
+    ['welcomeBack', 'Welcome back'], ['concerned', 'Concerned']];
+  var FIVE_MS = 5000, TALLY_KEY = 'fivesec';
+  function nameOf(k) { for (var i = 0; i < FEELINGS.length; i++) if (FEELINGS[i][0] === k) return FEELINGS[i][1]; return k; }
+  function loadTally() {
+    var t = null;
+    try { t = JSON.parse(read(TALLY_KEY) || 'null'); } catch (e) { t = null; }
+    return t && t.shown && t.right && t.picks ? t : { shown: {}, right: {}, picks: {} };
+  }
+  function buildFive() {
+    var stage = document.getElementById('five-stage'), status = document.getElementById('five-status');
+    var answers = document.getElementById('five-answers'), startBtn = document.getElementById('five-start');
+    var table = document.getElementById('five-tally');
+    var coach = BC.create(stage, { theme: coachTheme(), size: 112 });
+    coach.svg.setAttribute('aria-label', 'Fold');
+    allCoaches.push(coach);
+    if (hasGsap) BP.apply(coach, 'rest');
+    five = { coach: coach, timers: [], current: null };
+
+    function renderTally() {
+      var t = loadTally();
+      table.innerHTML = '';
+      var head = h('tr', '', h('thead', '', table));
+      ['Feeling', 'Shown', 'Recognised', 'Mistaken for'].forEach(function (c) { h('th', '', head, c).scope = 'col'; });
+      var tb = h('tbody', '', table), any = false;
+      FEELINGS.forEach(function (f) {
+        var k = f[0], n = t.shown[k] || 0;
+        if (!n) return;
+        any = true;
+        var tr = h('tr', '', tb);
+        h('td', '', tr, f[1]);
+        h('td', 'num', tr, String(n));
+        h('td', 'num', tr, (t.right[k] || 0) + ' (' + Math.round(100 * (t.right[k] || 0) / n) + '%)');
+        var wrong = Object.keys(t.picks[k] || {}).filter(function (a) { return a !== k; })
+          .sort(function (a, b) { return t.picks[k][b] - t.picks[k][a]; })
+          .map(function (a) { return nameOf(a) + ' ×' + t.picks[k][a]; });
+        h('td', '', tr, wrong.length ? wrong.join(', ') : '—');
+      });
+      if (!any) { var tr0 = h('tr', '', tb), td = h('td', '', tr0, 'No rounds yet.'); td.colSpan = 4; }
+    }
+
+    FEELINGS.forEach(function (f) {
+      var b = h('button', 'btn', answers, f[1]);
+      b.type = 'button';
+      b.addEventListener('click', function () { answer(f[0]); });
+    });
+
+    function round() {
+      if (!hasGsap) return;
+      stopRun();
+      quietOthers(five);
+      fiveQuiet();
+      var pick = FEELINGS[Math.floor(Math.random() * FEELINGS.length)][0];
+      five.current = pick;
+      stage.style.setProperty('--five-size', S.size + 'px');
+      coach.setSize(S.size);
+      coach.setTheme(coachTheme());
+      stage.classList.remove('is-hidden');
+      answers.hidden = true;
+      startBtn.disabled = true;
+      if (pick === 'rest') BP.apply(coach, 'rest');
+      else BP.play(coach, pick);
+      var left = 5;
+      status.textContent = 'Watch the coach · ' + left;
+      (function tick() {
+        later(five, function () {
+          left -= 1;
+          if (left > 0) { status.textContent = 'Watch the coach · ' + left; tick(); return; }
+          if (BP.isPlaying(coach)) BP.stop(coach, { immediate: true });
+          BP.apply(coach, 'rest');
+          stage.classList.add('is-hidden');
+          status.textContent = 'Which feeling did it show?';
+          answers.hidden = false;
+          var first = answers.querySelector('button');
+          if (first) first.focus({ preventScroll: true });
+        }, FIVE_MS / 5);
+      })();
+    }
+    function answer(k) {
+      var shown = five.current;
+      if (!shown) return;
+      five.current = null;
+      var t = loadTally();
+      t.shown[shown] = (t.shown[shown] || 0) + 1;
+      if (k === shown) t.right[shown] = (t.right[shown] || 0) + 1;
+      t.picks[shown] = t.picks[shown] || {};
+      t.picks[shown][k] = (t.picks[shown][k] || 0) + 1;
+      write(TALLY_KEY, JSON.stringify(t));
+      answers.hidden = true;
+      status.innerHTML = '';
+      h('span', k === shown ? 'right' : 'wrong', status, k === shown ? 'Right: ' : 'Not quite: ');
+      status.appendChild(document.createTextNode('it was ' + nameOf(shown) + (k === shown ? '.' : ', you picked ' + nameOf(k) + '.')));
+      startBtn.disabled = false;
+      startBtn.textContent = 'Next round';
+      startBtn.focus({ preventScroll: true });
+      renderTally();
+    }
+    startBtn.addEventListener('click', round);
+    document.getElementById('five-reset').addEventListener('click', function () {
+      try { localStorage.removeItem(KEY + TALLY_KEY); } catch (e) { /* private mode */ }
+      renderTally();
+    });
+    if (!hasGsap) startBtn.disabled = true;
+    five.reset = function () {
+      five.current = null;
+      stage.classList.remove('is-hidden');
+      answers.hidden = true;
+      startBtn.disabled = !hasGsap;
+      startBtn.textContent = 'Start a round';
+      status.textContent = 'Ready when you are.';
+    };
+    renderTally();
+  }
+  // Stop a round in progress (another coach started): the round is dropped, nothing is tallied.
+  function fiveQuiet() {
+    if (!five || !hasGsap) return;
+    var busy = five.timers.length || BP.isPlaying(five.coach) || five.current;
+    clearTimers(five);
+    if (BP.isPlaying(five.coach)) BP.stop(five.coach, { immediate: true });
+    if (busy) { BP.apply(five.coach, 'rest'); five.reset(); }
+  }
+
+  // ---------------------------------------------------------------- controls
+
+  function bindRadios(name, value, onChange) {
+    var inputs = document.querySelectorAll('input[name="' + name + '"]');
+    for (var i = 0; i < inputs.length; i++) {
+      (function (input) {
+        input.checked = String(input.value) === String(value);
+        input.addEventListener('change', function () { if (input.checked) onChange(input.value); });
+      })(inputs[i]);
+    }
+  }
+  bindRadios('theme', S.theme, function (v) { S.theme = v; write('theme', v); applyTheme(); });
+  bindRadios('size', S.size, function (v) { S.size = +v; write('size', v); applySize(); });
+  bindRadios('speed', S.speed, function (v) { S.speed = +v; write('speed', v); applySpeed(); });
+  var rm = document.getElementById('reduced-motion');
+  rm.checked = S.reduced;
+  rm.addEventListener('change', function () {
+    // The switch and its label update first, so they agree even if a coach cannot be stopped.
+    S.reduced = rm.checked;
+    if (!S.reduced) osReduced = false; // turned off by hand: the device notice has done its job
+    applyReduced();
+    stopRun();
+    quietOthers(null);
+  });
+
+  // ---------------------------------------------------------------- build
+
+  if (BC && BM && BP) {
+    MOMENTS.forEach(buildCard);
+    buildDock();
+    buildSizes();
+    buildCompare();
+    buildFive();
+  }
+  applyReduced();
+  applySpeed();
+  applyTheme();
+  applySize();
+  if (hasGsap) order.forEach(showStill);
+  setPlayAll(false);
+  // Control transitions only after the first paint, so the page opens on its settled state.
+  requestAnimationFrame(function () { requestAnimationFrame(function () { html.classList.add('ready'); }); });
+})();
+</script>

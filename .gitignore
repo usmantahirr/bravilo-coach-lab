@@ -1,0 +1,9 @@
+# Screenshots from tools/shot.sh and tools/phone-shot.mjs (regenerate them any time)
+out/
+
+# Dependencies
+node_modules/
+
+# Local tooling
+.vercel/
+.DS_Store
