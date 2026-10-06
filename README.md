@@ -32,7 +32,7 @@ The rules it follows come from the app's emotional design:
 ## Try it
 
 Open **`index.html`** in a browser. It's a single file with everything inlined except GSAP, which
-loads from cdnjs. Or deploy the folder as a static site; it needs no build step.
+loads from cdnjs. Or deploy the folder as a static site: `vercel.json` rebuilds the lab page and serves the repo root, and needs no dependencies.
 
 | | Light | Dark |
 |---|---|---|
