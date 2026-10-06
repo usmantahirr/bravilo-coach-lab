@@ -451,7 +451,7 @@
     </button>
   </section>
 
-  <p class="hint">Each card opens on the pose its moment ends on; Thinking shows its full thought. Play runs the moment from the start; tap or drag along a scrubber to stop on any frame. Ticks on a scrubber mark where the eyes, mouth, brows or effects change. Below 44 px the coach draws its small form: bolder eyes, no brows, and of the effects only the thinking dots.</p>
+  <p class="hint">Each card opens on the pose its moment ends on; Thinking shows its full thought. Play runs the moment from the start (or tap Pocket); tap or drag along a scrubber to stop on any frame. Ticks on a scrubber mark where the eyes, mouth, brows or effects change. Below 44 px the coach draws its small form: bolder eyes, no brows, and of the effects only the thinking dots.</p>
 
   <section class="grid" id="grid" aria-label="Moments"></section>
 
@@ -3365,8 +3365,18 @@ BraviloMotion.ANIMS['welcomeBack'] = {
     el.setAttribute('aria-labelledby', 'title-' + m.key);
     var stage = h('div', 'stage', el);
     card.coach = BC.create(stage, { theme: coachTheme(), size: S.size });
-    card.coach.svg.setAttribute('aria-label', 'Fold, ' + m.name.toLowerCase());
+    card.coach.svg.setAttribute('aria-label', 'Pocket, ' + m.name.toLowerCase());
     allCoaches.push(card.coach);
+    // D167: tapping Pocket plays the moment again; on the still Rest card it plays a nod. A tap while
+    // it is moving, or on Thinking, does nothing. Reduce Motion: nothing.
+    stage.style.cursor = 'pointer';
+    stage.addEventListener('click', function () {
+      if (!hasGsap || S.reduced || m.loop || BP.isPlaying(card.coach) || card.timers.length) return;
+      stopRun();
+      if (m.still) { quietOthers(card); BP.play(card.coach, 'nod'); return; }
+      if (m.key === 'press' || m.key === 'chatOpen') return;
+      playCard(card);
+    });
 
     var body = h('div', 'card-body', el);
     var head = h('div', 'card-head', body);
