@@ -44,7 +44,7 @@
   var EPS = 1e-6;          // time comparisons (ms)
   var TOL = 1e-4;          // value comparisons (drawing units, degrees, factors)
   var BLINK = 0.15;        // eyes scaleY at the bottom of a blink that hides an eye swap
-  var ONE_SHOT_MAX = 1250; // ms (SPEC §3)
+  var ONE_SHOT_MAX = 1700; // ms (SPEC §3, raised by D165)
 
   function Motion() { return window.BraviloMotion; }
   function Coach() { return window.BraviloCoach; }

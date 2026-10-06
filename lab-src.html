@@ -432,6 +432,13 @@
       </div>
     </div>
     <div class="ctl">
+      <span class="ctl-label" id="lbl-repeat">Play</span>
+      <div class="seg" role="radiogroup" aria-labelledby="lbl-repeat">
+        <input type="radio" name="repeat" id="repeat-1" value="1"><label for="repeat-1">Once</label>
+        <input type="radio" name="repeat" id="repeat-2" value="2"><label for="repeat-2">Twice</label>
+      </div>
+    </div>
+    <div class="ctl">
       <span class="ctl-label" id="lbl-reduced">Reduced motion</span>
       <label class="switch" for="reduced-motion">
         <input type="checkbox" role="switch" id="reduced-motion" aria-labelledby="lbl-reduced">
@@ -523,6 +530,7 @@
     theme: oneOf(q.get('theme'), THEMES) || oneOf(read('theme'), THEMES) || 'system',
     size: oneOf(q.get('size'), SIZES) || oneOf(read('size'), SIZES) || 112,
     speed: oneOf(q.get('speed'), SPEEDS) || oneOf(read('speed'), SPEEDS) || 1,
+    repeat: oneOf(q.get('repeat'), [1, 2]) || oneOf(read('repeat'), [1, 2]) || 2,
     // The switch follows the device's setting on every visit; ?reduced=1|0 for testing.
     reduced: q.has('reduced') ? q.get('reduced') === '1' : osReduced
   };
@@ -763,6 +771,7 @@
     if (five && five !== except) fiveQuiet();
   }
 
+  var ONCE_ONLY = { press: true, pressOpen: true, chatOpen: true };
   function playCard(card, done) {
     var id = animId(card), spec = specOf(id);
     if (!spec || !hasGsap) return;
@@ -771,12 +780,17 @@
     var D = BP.durationOf(id), start = spec.startPose || 'rest';
     card.el.classList.add('is-playing');
     setButton(card, 'replay');
-    function go() {
+    // D165: on one-time screens a moment plays, holds its end pose about 1.5 s, and plays once
+    // more. The tab-bar press, chat open and the idle beats always play once.
+    var twice = S.repeat === 2 && !S.reduced && !ONCE_ONLY[id] && id.indexOf('idle_') !== 0;
+    function go(pass) {
+      pass = pass || 1;
       var r = BP.play(card.coach, id, {
         onDone: function () {
           killFollow(card);
-          card.el.classList.remove('is-playing');
           setScrub(card, D);
+          if (twice && pass === 1) { later(card, function () { go(2); }, 1500); return; }
+          card.el.classList.remove('is-playing');
           if (done) done();
         }
       });
@@ -1352,6 +1366,7 @@
   bindRadios('theme', S.theme, function (v) { S.theme = v; write('theme', v); applyTheme(); });
   bindRadios('size', S.size, function (v) { S.size = +v; write('size', v); applySize(); });
   bindRadios('speed', S.speed, function (v) { S.speed = +v; write('speed', v); applySpeed(); });
+  bindRadios('repeat', S.repeat, function (v) { S.repeat = +v; write('repeat', v); });
   var rm = document.getElementById('reduced-motion');
   rm.checked = S.reduced;
   rm.addEventListener('change', function () {

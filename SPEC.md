@@ -117,7 +117,7 @@ Rules:
   (eyes `scaleY` to about 0.15 and back over ~120 ms around the swap) when it would pop.
 - Every animation starts from the `rest` pose (or from its own start pose, stated) and ends
   exactly on its `endPose`. Values at the last key equal the end pose.
-- Durations: one-shot animations **≤ 1250 ms**. `thinking` loops with a period of about
+- Durations: one-shot animations **≤ 1700 ms** (D165: designed at up to 1250 ms, then slowed evenly to about 1.3× by `anims/zz_timing.js`; press, pressOpen, chatOpen, thinking and the idle beats keep their designed times). `thinking` loops with a period of about
   1200–1600 ms and must look right when stopped at any moment (it returns to `rest` in about
   220 ms).
 - Easing names come only from `TOKENS.ease`.

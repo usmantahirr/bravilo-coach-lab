@@ -434,6 +434,13 @@
       </div>
     </div>
     <div class="ctl">
+      <span class="ctl-label" id="lbl-repeat">Play</span>
+      <div class="seg" role="radiogroup" aria-labelledby="lbl-repeat">
+        <input type="radio" name="repeat" id="repeat-1" value="1"><label for="repeat-1">Once</label>
+        <input type="radio" name="repeat" id="repeat-2" value="2"><label for="repeat-2">Twice</label>
+      </div>
+    </div>
+    <div class="ctl">
       <span class="ctl-label" id="lbl-reduced">Reduced motion</span>
       <label class="switch" for="reduced-motion">
         <input type="checkbox" role="switch" id="reduced-motion" aria-labelledby="lbl-reduced">
@@ -2432,6 +2439,31 @@ BraviloMotion.ANIMS['welcomeBack'] = {
   ]
 };
 </script>
+<script data-src="anims/zz_timing.js">
+/*
+ * Timing pass (D165): Pocket's one-shot moments run about 1.3x longer than they were designed.
+ * Every key time, swap time and duration is multiplied evenly, so each moment keeps its shape and
+ * only gets calmer. This file loads after every other anims/*.js file (the name sorts last), so
+ * the registered ANIMS (and anything exported from them) already carry the slower times.
+ *
+ * Not slowed: the tab-bar press, pressOpen and chatOpen (the button's response stays quick), the
+ * thinking loop and the idle beats.
+ */
+(function () {
+  var SCALE = 1.3;
+  var KEEP = { press: true, pressOpen: true, chatOpen: true, thinking: true };
+  var A = BraviloMotion.ANIMS;
+  BraviloMotion.TIMING = { scale: SCALE, unchanged: Object.keys(KEEP).concat(['idle_*']) };
+  Object.keys(A).forEach(function (id) {
+    var a = A[id];
+    if (KEEP[id] || a.loop || id.indexOf('idle_') === 0) return;
+    function t(ms) { return Math.round(ms * SCALE); }
+    a.durationMs = t(a.durationMs);
+    a.tracks.forEach(function (tr) { tr.keys = tr.keys.map(function (k) { var n = k.slice(); n[0] = t(k[0]); return n; }); });
+    a.swaps = (a.swaps || []).map(function (s) { var n = s.slice(); n[0] = t(s[0]); return n; });
+  });
+})();
+</script>
 <script data-src="player.js">
 /*
  * Bravilo coach player (SPEC §5). Plain browser JavaScript on GSAP 3.13 (global `gsap`).
@@ -2479,7 +2511,7 @@ BraviloMotion.ANIMS['welcomeBack'] = {
   var EPS = 1e-6;          // time comparisons (ms)
   var TOL = 1e-4;          // value comparisons (drawing units, degrees, factors)
   var BLINK = 0.15;        // eyes scaleY at the bottom of a blink that hides an eye swap
-  var ONE_SHOT_MAX = 1250; // ms (SPEC §3)
+  var ONE_SHOT_MAX = 1700; // ms (SPEC §3, raised by D165)
 
   function Motion() { return window.BraviloMotion; }
   function Coach() { return window.BraviloCoach; }
@@ -3018,6 +3050,7 @@ BraviloMotion.ANIMS['welcomeBack'] = {
     theme: oneOf(q.get('theme'), THEMES) || oneOf(read('theme'), THEMES) || 'system',
     size: oneOf(q.get('size'), SIZES) || oneOf(read('size'), SIZES) || 112,
     speed: oneOf(q.get('speed'), SPEEDS) || oneOf(read('speed'), SPEEDS) || 1,
+    repeat: oneOf(q.get('repeat'), [1, 2]) || oneOf(read('repeat'), [1, 2]) || 2,
     // The switch follows the device's setting on every visit; ?reduced=1|0 for testing.
     reduced: q.has('reduced') ? q.get('reduced') === '1' : osReduced
   };
@@ -3258,6 +3291,7 @@ BraviloMotion.ANIMS['welcomeBack'] = {
     if (five && five !== except) fiveQuiet();
   }
 
+  var ONCE_ONLY = { press: true, pressOpen: true, chatOpen: true };
   function playCard(card, done) {
     var id = animId(card), spec = specOf(id);
     if (!spec || !hasGsap) return;
@@ -3266,12 +3300,17 @@ BraviloMotion.ANIMS['welcomeBack'] = {
     var D = BP.durationOf(id), start = spec.startPose || 'rest';
     card.el.classList.add('is-playing');
     setButton(card, 'replay');
-    function go() {
+    // D165: on one-time screens a moment plays, holds its end pose about 1.5 s, and plays once
+    // more. The tab-bar press, chat open and the idle beats always play once.
+    var twice = S.repeat === 2 && !S.reduced && !ONCE_ONLY[id] && id.indexOf('idle_') !== 0;
+    function go(pass) {
+      pass = pass || 1;
       var r = BP.play(card.coach, id, {
         onDone: function () {
           killFollow(card);
-          card.el.classList.remove('is-playing');
           setScrub(card, D);
+          if (twice && pass === 1) { later(card, function () { go(2); }, 1500); return; }
+          card.el.classList.remove('is-playing');
           if (done) done();
         }
       });
@@ -3847,6 +3886,7 @@ BraviloMotion.ANIMS['welcomeBack'] = {
   bindRadios('theme', S.theme, function (v) { S.theme = v; write('theme', v); applyTheme(); });
   bindRadios('size', S.size, function (v) { S.size = +v; write('size', v); applySize(); });
   bindRadios('speed', S.speed, function (v) { S.speed = +v; write('speed', v); applySpeed(); });
+  bindRadios('repeat', S.repeat, function (v) { S.repeat = +v; write('repeat', v); });
   var rm = document.getElementById('reduced-motion');
   rm.checked = S.reduced;
   rm.addEventListener('change', function () {

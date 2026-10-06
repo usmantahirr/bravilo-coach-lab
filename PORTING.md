@@ -433,3 +433,16 @@ Today amends D75 and D154 for its one coach only:
 - Stop the idle timer when Today is not visible (blur, background, scrolled off screen).
 - Reduce Motion: no replay and no idle beat.
 - Every other screen keeps once per event and no idle motion.
+
+## 16. Longer moments, twice on one-time screens, replay on view (D165)
+
+- **Timing:** `anims/zz_timing.js` slows every one-shot evenly by 1.3×: key times, swap times and durationMs. It loads last, so `BraviloMotion.ANIMS` (and the §2 export) already carry the slower numbers. Port the exported data and never scale again in the app. Unchanged: press, pressOpen, chatOpen, thinking and `idle_*`. The validator's one-shot cap is now 1700 ms.
+- **Twice:** on one-time screens, play the moment, hold its end pose for 1,500 ms, then play it again. The second play settles from the end pose to the start pose in 220 ms, as `play()` does. After that, hold the end pose. These screens:
+  - welcome and sign-in (greeting);
+  - the finish screen (happy, proud or surprised);
+  - plan updated (nod);
+  - onboarding look-down and voice pick (nod);
+  - the chat opened from "Something feels off" (concerned).
+- **Replay on view:** Today (§15, with the idle beat) and the empty chat (greeting, no idle beat) replay each time they come into view. Key the moment by visit.
+- **Reduce Motion:** no second play and no replays.
+- **The lab:** a new "Play: Once / Twice" control. Twice is the default and shows the one-time screen behaviour; it never applies to press, pressOpen, chatOpen or the idle beats.
